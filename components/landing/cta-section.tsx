@@ -15,13 +15,13 @@ export function CTASection() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" asChild className="gap-2">
-              <Link href="/learn">
-                Explore as Student
+              <Link href="/register">
+                Get Started Free
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/teacher">Explore as Teacher</Link>
+              <Link href="/login">Sign In</Link>
             </Button>
           </div>
         </div>

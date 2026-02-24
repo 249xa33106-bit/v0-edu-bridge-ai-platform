@@ -24,13 +24,13 @@ export function HeroSection() {
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" asChild className="gap-2">
-              <Link href="/learn">
+              <Link href="/register">
                 Start Learning Now
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/teacher">Teacher Dashboard</Link>
+              <Link href="/login">Sign In</Link>
             </Button>
           </div>
         </div>
