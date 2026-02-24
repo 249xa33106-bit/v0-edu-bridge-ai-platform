@@ -167,7 +167,7 @@ export function LearnClient() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Right: Output Panel */}
       <motion.div variants={fadeUp} className="flex flex-col gap-6 lg:col-span-3">
