@@ -93,7 +93,7 @@ function getBarColor(score: number) {
 
 export function TeacherClient() {
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
       {/* Overview Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -102,7 +102,8 @@ export function TeacherClient() {
           { icon: AlertTriangle, label: "At-Risk Students", value: classStats.atRiskCount, suffix: "", alert: true },
           { icon: Activity, label: "Engagement Rate", value: classStats.engagementRate, suffix: "%" },
         ].map((stat) => (
-          <Card key={stat.label} className="border-border">
+          <motion.div key={stat.label} variants={fadeUp}>
+          <Card className={glassCard}>
             <CardContent className="flex items-center gap-3 py-5">
               <div className={`flex size-10 items-center justify-center rounded-lg ${stat.alert ? "bg-destructive/10" : "bg-primary/10"}`}>
                 <stat.icon className={`size-5 ${stat.alert ? "text-destructive" : "text-primary"}`} />
@@ -111,10 +112,11 @@ export function TeacherClient() {
                 <p className="font-display text-2xl font-bold text-foreground">
                   {stat.value}{stat.suffix}
                 </p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </CardContent>
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </div>
+          </CardContent>
           </Card>
+          </motion.div>
         ))}
       </div>
 
@@ -140,7 +142,7 @@ export function TeacherClient() {
 
         {/* Performance Heatmap */}
         <TabsContent value="performance" className="mt-4">
-          <Card className="border-border">
+          <Card className={glassCard}>
             <CardHeader className="flex-row items-center justify-between">
               <div>
                 <CardTitle className="font-display">Topic-wise Performance Heatmap</CardTitle>
@@ -192,7 +194,7 @@ export function TeacherClient() {
 
         {/* At-Risk Students */}
         <TabsContent value="at-risk" className="mt-4">
-          <Card className="border-border">
+          <Card className={glassCard}>
             <CardHeader className="flex-row items-center justify-between">
               <div>
                 <CardTitle className="font-display">At-Risk Student Predictions</CardTitle>
@@ -247,7 +249,7 @@ export function TeacherClient() {
 
         {/* Engagement Tracking */}
         <TabsContent value="engagement" className="mt-4">
-          <Card className="border-border">
+          <Card className={glassCard}>
             <CardHeader>
               <CardTitle className="font-display">Engagement & Quiz Completion Trend</CardTitle>
               <CardDescription>Weekly tracking of student engagement and assessment completion rates</CardDescription>
@@ -300,7 +302,7 @@ export function TeacherClient() {
 
         {/* Weak Concepts */}
         <TabsContent value="concepts" className="mt-4">
-          <Card className="border-border">
+          <Card className={glassCard}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-display">
                 <Clock className="size-5 text-primary" />
@@ -330,6 +332,6 @@ export function TeacherClient() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </motion.div>
   )
 }

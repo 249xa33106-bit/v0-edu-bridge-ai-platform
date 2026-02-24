@@ -232,7 +232,7 @@ export function LearnClient() {
             </TabsContent>
           </Tabs>
         ) : (
-          <Card className="flex flex-1 flex-col items-center justify-center border-dashed border-border py-16">
+          <Card className="flex flex-1 flex-col items-center justify-center border-dashed border-white/[0.12] bg-white/[0.04] backdrop-blur-xl py-16">
             <Languages className="mb-4 size-12 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">Process your notes to see simplified and translated output</p>
           </Card>
@@ -290,7 +290,7 @@ export function LearnClient() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

@@ -101,7 +101,7 @@ export function CareerClient() {
   const [selectedRole, setSelectedRole] = useState(roles[0])
 
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
       {/* Role Selector */}
       <div className="flex flex-wrap gap-3">
         {roles.map((role) => (
@@ -118,8 +118,8 @@ export function CareerClient() {
       </div>
 
       {/* Readiness Score + Radar Chart */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="border-border">
+      <motion.div variants={fadeUp} className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="font-display">Career Readiness Score</CardTitle>
             <CardDescription>Overall preparedness for {selectedRole.title}</CardDescription>
@@ -157,7 +157,7 @@ export function CareerClient() {
           </CardContent>
         </Card>
 
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="font-display">Skill Gap Radar Chart</CardTitle>
             <CardDescription>Your skills vs. industry requirements</CardDescription>
@@ -198,7 +198,8 @@ export function CareerClient() {
       </div>
 
       {/* Priority Skill Gaps */}
-      <Card className="border-border">
+      <motion.div variants={fadeUp}>
+      <Card className={glassCard}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-display">
             <Target className="size-5 text-primary" />
@@ -222,9 +223,11 @@ export function CareerClient() {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* Recommended Courses */}
-      <Card className="border-border">
+      <motion.div variants={fadeUp}>
+      <Card className={glassCard}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-display">
             <BookOpen className="size-5 text-primary" />
@@ -256,10 +259,11 @@ export function CareerClient() {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* Projects & Certifications */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="border-border">
+      <motion.div variants={fadeUp} className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display">
               <TrendingUp className="size-5 text-primary" />
@@ -285,7 +289,7 @@ export function CareerClient() {
           </CardContent>
         </Card>
 
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display">
               <Award className="size-5 text-primary" />
@@ -301,14 +305,15 @@ export function CareerClient() {
                     <p className="mt-0.5 text-xs text-muted-foreground">{cert.difficulty}</p>
                   </div>
                   <Button variant="ghost" size="icon" aria-label="View certification">
-                    <ExternalLink className="size-4" />
+                <ExternalLink className="size-4" />
                   </Button>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-      </div>
-    </div>
+
+      </motion.div>
+    </motion.div>
   )
 }

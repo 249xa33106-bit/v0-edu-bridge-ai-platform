@@ -112,7 +112,8 @@ export function StudyPlanClient() {
 
   if (!generated) {
     return (
-      <Card className="mx-auto max-w-lg border-border">
+      <motion.div initial="hidden" animate="visible" variants={stagger} className="flex justify-center">
+      <Card className={`${glassCard} mx-auto max-w-lg`}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-display">
             <Route className="size-5 text-primary" />
@@ -161,14 +162,15 @@ export function StudyPlanClient() {
           </Button>
         </CardContent>
       </Card>
+      </motion.div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
       {/* Progress Overview */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex items-center gap-3 py-5">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
               <Target className="size-5 text-primary" />
@@ -179,7 +181,7 @@ export function StudyPlanClient() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex items-center gap-3 py-5">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
               <Clock className="size-5 text-primary" />
@@ -190,7 +192,7 @@ export function StudyPlanClient() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex items-center gap-3 py-5">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
               <BookOpen className="size-5 text-primary" />
@@ -201,7 +203,7 @@ export function StudyPlanClient() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex flex-col gap-2 py-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-foreground">{progressPct}% Complete</p>
@@ -213,7 +215,7 @@ export function StudyPlanClient() {
       </div>
 
       {/* Skill Gap Visualization */}
-      <Card className="border-border">
+      <Card className={glassCard}>
         <CardHeader>
           <CardTitle className="font-display">Skill Gap Analysis</CardTitle>
           <CardDescription>Current level vs. required level for your target role</CardDescription>
@@ -255,7 +257,7 @@ export function StudyPlanClient() {
       </Card>
 
       {/* Weekly Roadmap */}
-      <Card className="border-border">
+      <Card className={glassCard}>
         <CardHeader>
           <CardTitle className="font-display">Weekly Roadmap</CardTitle>
           <CardDescription>Your personalized 8-week study plan with practice schedules</CardDescription>
@@ -322,6 +324,6 @@ export function StudyPlanClient() {
           </a>
         </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }

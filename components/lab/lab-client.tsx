@@ -189,11 +189,11 @@ export function LabClient() {
 
   if (!selectedLab) {
     return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <motion.div initial="hidden" animate="visible" variants={stagger} className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {labs.map((lab) => (
+          <motion.div key={lab.id} variants={fadeUp}>
           <Card
-            key={lab.id}
-            className="group cursor-pointer border-border transition-shadow hover:shadow-lg"
+            className={`${glassCard} group cursor-pointer card-hover`}
             onClick={() => handleSelectLab(lab)}
           >
             <CardHeader>
@@ -221,8 +221,9 @@ export function LabClient() {
               </div>
             </CardHeader>
           </Card>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     )
   }
 
@@ -230,7 +231,7 @@ export function LabClient() {
   const allCompleted = completedSteps.size === selectedLab.steps.length
 
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -273,7 +274,7 @@ export function LabClient() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Explanation Panel */}
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="font-display text-base">{step.title}</CardTitle>
           </CardHeader>
@@ -298,7 +299,7 @@ export function LabClient() {
         </Card>
 
         {/* Code Editor Panel */}
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 font-display text-base">
               <Code className="size-4 text-primary" />
@@ -378,6 +379,6 @@ export function LabClient() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </motion.div>
   )
 }

@@ -179,7 +179,8 @@ export function DiagnosticClient() {
 
   if (phase === "setup") {
     return (
-      <Card className="mx-auto max-w-lg border-border">
+      <motion.div initial="hidden" animate="visible" variants={stagger} className="flex justify-center">
+      <Card className={`${glassCard} mx-auto max-w-lg`}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-display">
             <Brain className="size-5 text-primary" />
@@ -214,13 +215,14 @@ export function DiagnosticClient() {
           </Button>
         </CardContent>
       </Card>
+      </motion.div>
     )
   }
 
   if (phase === "quiz") {
     const q = quizQuestions[currentQ]
     return (
-      <div className="mx-auto max-w-2xl">
+      <motion.div initial="hidden" animate="visible" variants={stagger} className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center justify-between">
           <Badge variant="secondary" className="gap-1">
             <Clock className="size-3" />
@@ -229,7 +231,7 @@ export function DiagnosticClient() {
           <Badge variant="outline">{q.topic}</Badge>
         </div>
         <Progress value={((currentQ + 1) / quizQuestions.length) * 100} className="mb-8" />
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="text-lg font-display leading-relaxed">{q.question}</CardTitle>
           </CardHeader>
@@ -260,29 +262,29 @@ export function DiagnosticClient() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     )
   }
 
   // Results phase
   const topicScores = getTopicScores()
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
       {/* Score Summary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex flex-col items-center py-6">
             <span className="font-display text-4xl font-bold text-primary">{totalCorrect}/{quizQuestions.length}</span>
             <span className="mt-1 text-sm text-muted-foreground">Overall Score</span>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex flex-col items-center py-6">
             <span className="font-display text-4xl font-bold text-foreground">{Math.round((totalCorrect / quizQuestions.length) * 100)}%</span>
             <span className="mt-1 text-sm text-muted-foreground">Accuracy</span>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardContent className="flex flex-col items-center py-6">
             <span className="font-display text-4xl font-bold text-foreground">{Math.round((Date.now() - startTime) / 1000)}s</span>
             <span className="mt-1 text-sm text-muted-foreground">Total Time</span>
@@ -291,7 +293,7 @@ export function DiagnosticClient() {
       </div>
 
       {/* Topic Strength Heatmap */}
-      <Card className="border-border">
+      <Card className={glassCard}>
         <CardHeader>
           <CardTitle className="font-display">Topic Strength Heatmap</CardTitle>
           <CardDescription>Visual breakdown of performance across topics</CardDescription>
@@ -329,7 +331,7 @@ export function DiagnosticClient() {
       </Card>
 
       {/* Improvement Plan */}
-      <Card className="border-border">
+      <Card className={glassCard}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-display">
             <Zap className="size-5 text-accent" />
@@ -393,6 +395,6 @@ export function DiagnosticClient() {
           </a>
         </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }
