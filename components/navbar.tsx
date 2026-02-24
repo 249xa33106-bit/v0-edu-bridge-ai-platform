@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   BookOpen,
   Brain,
@@ -46,14 +47,19 @@ export function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
+    <motion.header
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="sticky top-0 z-50 glass-nav"
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20 transition-transform duration-300 group-hover:scale-110">
             <GraduationCap className="size-5 text-primary-foreground" />
           </div>
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
-            EduBridge <span className="text-primary">AI</span>
+            EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
           </span>
         </Link>
 
@@ -66,14 +72,23 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                     isActive
                       ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
                   )}
                 >
-                  <item.icon className="size-4" />
-                  {item.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-active"
+                      className="absolute inset-0 rounded-lg bg-primary/10"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative flex items-center gap-1.5">
+                    <item.icon className="size-4" />
+                    {item.label}
+                  </span>
                 </Link>
               )
             })}
@@ -83,8 +98,8 @@ export function Navbar() {
         <div className="hidden items-center gap-3 lg:flex">
           {user ? (
             <>
-              <div className="flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5">
-                <div className="flex size-6 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <div className="flex items-center gap-2 rounded-full px-3 py-1.5 glass-card">
+                <div className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary">
                   <User className="size-3.5" />
                 </div>
                 <div className="flex flex-col">
@@ -92,17 +107,17 @@ export function Navbar() {
                   <span className="text-[10px] leading-none text-muted-foreground capitalize">{user.role}</span>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5 btn-glow">
                 <LogOut className="size-3.5" />
                 Logout
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="btn-glow">
                 <Link href="/login">Sign In</Link>
               </Button>
-              <Button size="sm" asChild>
+              <Button size="sm" asChild className="btn-glow">
                 <Link href="/register">Get Started</Link>
               </Button>
             </>
@@ -120,63 +135,73 @@ export function Navbar() {
         </Button>
       </div>
 
-      {mobileOpen && (
-        <div className="border-t border-border bg-card px-4 pb-4 pt-2 lg:hidden">
-          {user && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2.5">
-              <div className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <User className="size-4" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">{user.name}</span>
-                <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden border-t border-white/10 px-4 lg:hidden glass-card"
+          >
+            <div className="pb-4 pt-2">
+              {user && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl px-3 py-2.5 glass-card">
+                  <div className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <User className="size-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">{user.name}</span>
+                    <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                  </div>
+                </div>
+              )}
+
+              {user && (
+                <nav className="flex flex-col gap-1" role="navigation" aria-label="Mobile navigation">
+                  {navItems.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                        )}
+                      >
+                        <item.icon className="size-4" />
+                        {item.label}
+                      </Link>
+                    )
+                  })}
+                </nav>
+              )}
+
+              <div className="mt-3 flex flex-col gap-2">
+                {user ? (
+                  <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
+                    <LogOut className="size-3.5" />
+                    Logout
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/login" onClick={() => setMobileOpen(false)}>Sign In</Link>
+                    </Button>
+                    <Button size="sm" asChild>
+                      <Link href="/register" onClick={() => setMobileOpen(false)}>Get Started</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-          )}
-
-          {user && (
-            <nav className="flex flex-col gap-1" role="navigation" aria-label="Mobile navigation">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn(
-                      "flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="size-4" />
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </nav>
-          )}
-
-          <div className="mt-3 flex flex-col gap-2">
-            {user ? (
-              <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
-                <LogOut className="size-3.5" />
-                Logout
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/login" onClick={() => setMobileOpen(false)}>Sign In</Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link href="/register" onClick={() => setMobileOpen(false)}>Get Started</Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </header>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   )
 }

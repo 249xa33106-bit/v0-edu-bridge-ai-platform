@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
 import { useAuth, type UserRole } from "@/components/auth/auth-provider"
 import { Loader2 } from "lucide-react"
 
@@ -27,11 +28,15 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
+      <div className="flex min-h-screen items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center gap-4 rounded-2xl p-8 glass-card"
+        >
           <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
+          <p className="text-sm text-muted-foreground">Loading your workspace...</p>
+        </motion.div>
       </div>
     )
   }

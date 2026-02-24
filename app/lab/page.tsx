@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth/auth-guard"
 export default function LabPage() {
   return (
     <AuthGuard allowedRoles={["student"]}>
-      <div className="min-h-screen bg-background">
+      <div className="relative z-10 min-h-screen">
         <Navbar />
         <main className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
           <div className="mb-8">

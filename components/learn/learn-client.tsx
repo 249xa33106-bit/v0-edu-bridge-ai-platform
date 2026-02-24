@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,6 +24,17 @@ import {
   Sparkles,
   BookOpen,
 } from "lucide-react"
+
+const stagger = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
+}
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] } },
+}
+
+const glassCard = "rounded-2xl border border-white/[0.12] bg-white/[0.06] shadow-lg shadow-black/[0.04] backdrop-blur-xl"
 
 const sampleNotes = `Machine Learning is a subset of Artificial Intelligence that enables systems to learn from data, identify patterns, and make decisions with minimal human intervention. 
 
@@ -108,10 +120,15 @@ export function LearnClient() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={stagger}
+      className="grid grid-cols-1 gap-6 lg:grid-cols-5"
+    >
       {/* Left: Input Panel */}
-      <div className="lg:col-span-2">
-        <Card className="border-border">
+      <motion.div variants={fadeUp} className="lg:col-span-2">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display">
               <Upload className="size-5 text-primary" />
@@ -153,7 +170,7 @@ export function LearnClient() {
       </div>
 
       {/* Right: Output Panel */}
-      <div className="flex flex-col gap-6 lg:col-span-3">
+      <motion.div variants={fadeUp} className="flex flex-col gap-6 lg:col-span-3">
         {result ? (
           <Tabs defaultValue="simplified" className="w-full">
             <TabsList className="w-full justify-start">
@@ -167,7 +184,7 @@ export function LearnClient() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="simplified">
-              <Card className="border-border">
+              <Card className={glassCard}>
                 <CardHeader className="flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-base font-display">Simplified Explanation</CardTitle>
@@ -188,7 +205,7 @@ export function LearnClient() {
               </Card>
             </TabsContent>
             <TabsContent value="translated">
-              <Card className="border-border">
+              <Card className={glassCard}>
                 <CardHeader className="flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-base font-display">
@@ -222,7 +239,7 @@ export function LearnClient() {
         )}
 
         {/* Q&A Section */}
-        <Card className="border-border">
+        <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display text-base">
               <Mic className="size-4 text-primary" />

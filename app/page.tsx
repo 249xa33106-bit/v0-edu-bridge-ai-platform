@@ -7,7 +7,7 @@ import { Navbar } from "@/components/navbar"
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative z-10 min-h-screen">
       <Navbar />
       <main>
         <HeroSection />
@@ -16,7 +16,7 @@ export default function HomePage() {
         <DemoFlowSection />
         <CTASection />
       </main>
-      <footer className="border-t border-border bg-card py-8">
+      <footer className="border-t border-white/10 py-8 glass-nav">
         <div className="mx-auto max-w-7xl px-4 text-center text-sm text-muted-foreground lg:px-8">
           <p>EduBridge AI - Bridging the gap in education through intelligent, personalized learning.</p>
         </div>

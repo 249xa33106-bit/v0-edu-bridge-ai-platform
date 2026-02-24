@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
 import { GraduationCap, BookOpen, Users, Loader2, Eye, EyeOff } from "lucide-react"
 import { useAuth, type UserRole } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageTransition } from "@/components/motion"
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -72,6 +74,7 @@ export default function RegisterPage() {
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
             required
+            className="bg-white/50 backdrop-blur-sm"
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -84,6 +87,7 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
             required
+            className="bg-white/50 backdrop-blur-sm"
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -97,11 +101,12 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               required
+              className="bg-white/50 backdrop-blur-sm"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -118,12 +123,19 @@ export default function RegisterPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"
             required
+            className="bg-white/50 backdrop-blur-sm"
           />
         </div>
         {error && (
-          <p className="text-sm text-destructive">{error}</p>
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm text-destructive"
+          >
+            {error}
+          </motion.p>
         )}
-        <Button type="submit" disabled={loading} className="w-full">
+        <Button type="submit" disabled={loading} className="w-full btn-glow">
           {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
           Create {formRole === "student" ? "Student" : "Teacher"} Account
         </Button>
@@ -132,52 +144,52 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <Link href="/" className="mb-8 flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary">
+    <div className="relative z-10 flex min-h-screen flex-col">
+      <PageTransition className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+        <Link href="/" className="mb-8 flex items-center gap-2.5 group">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20 transition-transform duration-300 group-hover:scale-110">
             <GraduationCap className="size-6 text-primary-foreground" />
           </div>
           <span className="font-display text-2xl font-bold tracking-tight text-foreground">
-            EduBridge <span className="text-primary">AI</span>
+            EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
           </span>
         </Link>
 
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="font-display text-2xl">Create Your Account</CardTitle>
-            <CardDescription>Join EduBridge AI and start your journey</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={role} onValueChange={(v) => { setRole(v as UserRole); setError("") }}>
-              <TabsList className="mb-6 w-full">
-                <TabsTrigger value="student" className="flex-1 gap-1.5">
-                  <BookOpen className="size-4" />
-                  Student
-                </TabsTrigger>
-                <TabsTrigger value="teacher" className="flex-1 gap-1.5">
-                  <Users className="size-4" />
-                  Teacher
-                </TabsTrigger>
-              </TabsList>
+        <motion.div
+          initial={{ scale: 0.96, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        >
+          <Card className="w-full max-w-md rounded-2xl glass-card">
+            <CardHeader className="text-center">
+              <CardTitle className="font-display text-2xl">Create Your Account</CardTitle>
+              <CardDescription>Join EduBridge AI and start your journey</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={role} onValueChange={(v) => { setRole(v as UserRole); setError("") }}>
+                <TabsList className="mb-6 w-full">
+                  <TabsTrigger value="student" className="flex-1 gap-1.5">
+                    <BookOpen className="size-4" />
+                    Student
+                  </TabsTrigger>
+                  <TabsTrigger value="teacher" className="flex-1 gap-1.5">
+                    <Users className="size-4" />
+                    Teacher
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="student">{renderForm("student")}</TabsContent>
+                <TabsContent value="teacher">{renderForm("teacher")}</TabsContent>
+              </Tabs>
 
-              <TabsContent value="student">
-                {renderForm("student")}
-              </TabsContent>
-
-              <TabsContent value="teacher">
-                {renderForm("teacher")}
-              </TabsContent>
-            </Tabs>
-
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href="/login" className="font-medium text-primary hover:underline">
-                Sign in here
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <Link href="/login" className="font-medium text-primary hover:underline">
+                  Sign in here
+                </Link>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         <Link
           href="/"
@@ -185,7 +197,7 @@ export default function RegisterPage() {
         >
           Back to Home
         </Link>
-      </div>
+      </PageTransition>
     </div>
   )
 }

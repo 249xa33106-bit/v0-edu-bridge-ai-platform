@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
 import { GraduationCap, BookOpen, Users, Loader2, Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageTransition } from "@/components/motion"
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -46,137 +48,110 @@ export default function LoginPage() {
     }
   }
 
+  function renderForm() {
+    const prefix = role === "student" ? "student" : "teacher"
+    return (
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${prefix}-email`}>Email Address</Label>
+          <Input
+            id={`${prefix}-email`}
+            type="email"
+            placeholder={role === "student" ? "you@college.edu" : "you@school.edu"}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+            className="bg-white/50 backdrop-blur-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${prefix}-password`}>Password</Label>
+          <div className="relative">
+            <Input
+              id={`${prefix}-password`}
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              className="bg-white/50 backdrop-blur-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+        </div>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm text-destructive"
+          >
+            {error}
+          </motion.p>
+        )}
+        <Button type="submit" disabled={loading} className="w-full btn-glow">
+          {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+          Sign In as {role === "student" ? "Student" : "Teacher"}
+        </Button>
+      </form>
+    )
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <Link href="/" className="mb-8 flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary">
+    <div className="relative z-10 flex min-h-screen flex-col">
+      <PageTransition className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+        <Link href="/" className="mb-8 flex items-center gap-2.5 group">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20 transition-transform duration-300 group-hover:scale-110">
             <GraduationCap className="size-6 text-primary-foreground" />
           </div>
           <span className="font-display text-2xl font-bold tracking-tight text-foreground">
-            EduBridge <span className="text-primary">AI</span>
+            EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
           </span>
         </Link>
 
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="font-display text-2xl">Welcome Back</CardTitle>
-            <CardDescription>Sign in to continue your learning journey</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={role} onValueChange={(v) => { setRole(v as "student" | "teacher"); setError("") }}>
-              <TabsList className="mb-6 w-full">
-                <TabsTrigger value="student" className="flex-1 gap-1.5">
-                  <BookOpen className="size-4" />
-                  Student
-                </TabsTrigger>
-                <TabsTrigger value="teacher" className="flex-1 gap-1.5">
-                  <Users className="size-4" />
-                  Teacher
-                </TabsTrigger>
-              </TabsList>
+        <motion.div
+          initial={{ scale: 0.96, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        >
+          <Card className="w-full max-w-md rounded-2xl glass-card">
+            <CardHeader className="text-center">
+              <CardTitle className="font-display text-2xl">Welcome Back</CardTitle>
+              <CardDescription>Sign in to continue your learning journey</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={role} onValueChange={(v) => { setRole(v as "student" | "teacher"); setError("") }}>
+                <TabsList className="mb-6 w-full">
+                  <TabsTrigger value="student" className="flex-1 gap-1.5">
+                    <BookOpen className="size-4" />
+                    Student
+                  </TabsTrigger>
+                  <TabsTrigger value="teacher" className="flex-1 gap-1.5">
+                    <Users className="size-4" />
+                    Teacher
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="student">{renderForm()}</TabsContent>
+                <TabsContent value="teacher">{renderForm()}</TabsContent>
+              </Tabs>
 
-              <TabsContent value="student">
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="student-email">Email Address</Label>
-                    <Input
-                      id="student-email"
-                      type="email"
-                      placeholder="you@college.edu"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="student-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="student-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete="current-password"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  {error && (
-                    <p className="text-sm text-destructive">{error}</p>
-                  )}
-                  <Button type="submit" disabled={loading} className="w-full">
-                    {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                    Sign In as Student
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="teacher">
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="teacher-email">Email Address</Label>
-                    <Input
-                      id="teacher-email"
-                      type="email"
-                      placeholder="you@school.edu"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="teacher-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="teacher-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete="current-password"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  {error && (
-                    <p className="text-sm text-destructive">{error}</p>
-                  )}
-                  <Button type="submit" disabled={loading} className="w-full">
-                    {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                    Sign In as Teacher
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              {"Don't have an account? "}
-              <Link href="/register" className="font-medium text-primary hover:underline">
-                Create one here
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                {"Don't have an account? "}
+                <Link href="/register" className="font-medium text-primary hover:underline">
+                  Create one here
+                </Link>
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         <Link
           href="/"
@@ -184,7 +159,7 @@ export default function LoginPage() {
         >
           Back to Home
         </Link>
-      </div>
+      </PageTransition>
     </div>
   )
 }

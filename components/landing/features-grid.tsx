@@ -1,3 +1,6 @@
+"use client"
+
+import { motion } from "framer-motion"
 import {
   BookOpen,
   Brain,
@@ -6,8 +9,8 @@ import {
   GraduationCap,
   FlaskConical,
 } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { StaggerContainer, FadeInUp } from "@/components/motion"
 
 const features = [
   {
@@ -56,41 +59,46 @@ const features = [
 
 export function FeaturesGrid() {
   return (
-    <section className="border-t border-border bg-card py-20 lg:py-28">
+    <section className="relative py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="mx-auto mb-14 max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold tracking-tight text-foreground lg:text-4xl text-balance">
-            Six Pillars of Personalized Learning
-          </h2>
-          <p className="mt-4 text-muted-foreground text-pretty">
-            Every feature is designed to solve a real educational problem for students and teachers in underserved communities.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <StaggerContainer className="mx-auto mb-14 max-w-2xl text-center">
+          <FadeInUp>
+            <h2 className="font-display text-3xl font-bold tracking-tight text-foreground lg:text-4xl text-balance">
+              Six Pillars of Personalized Learning
+            </h2>
+          </FadeInUp>
+          <FadeInUp>
+            <p className="mt-4 text-muted-foreground text-pretty">
+              Every feature is designed to solve a real educational problem for students and teachers in underserved communities.
+            </p>
+          </FadeInUp>
+        </StaggerContainer>
+        <StaggerContainer className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
-            <Card
-              key={feature.title}
-              className="group border-border bg-background transition-shadow hover:shadow-lg"
-            >
-              <CardHeader>
-                <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+            <FadeInUp key={feature.title}>
+              <motion.div
+                whileHover={{ y: -6, scale: 1.02 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="group rounded-2xl p-6 glass-card card-hover"
+              >
+                <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
                   <feature.icon className="size-5" />
                 </div>
-                <CardTitle className="font-display text-lg">{feature.title}</CardTitle>
-                <CardDescription className="leading-relaxed">
+                <h3 className="font-display text-lg font-semibold text-foreground">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {feature.description}
-                </CardDescription>
-                <div className="flex flex-wrap gap-1.5 pt-3">
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-4">
                   {feature.tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
                   ))}
                 </div>
-              </CardHeader>
-            </Card>
+              </motion.div>
+            </FadeInUp>
           ))}
-        </div>
+        </StaggerContainer>
       </div>
     </section>
   )
