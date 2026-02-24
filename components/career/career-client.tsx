@@ -195,7 +195,7 @@ export function CareerClient() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Priority Skill Gaps */}
       <motion.div variants={fadeUp}>
