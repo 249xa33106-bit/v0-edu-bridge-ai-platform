@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -13,7 +14,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Brain, CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, Zap } from "lucide-react"
+import {
+  Brain,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRight,
+  RotateCcw,
+  Zap,
+  FileText,
+  CalendarDays,
+  BookOpen,
+  Target,
+  AlertCircle,
+} from "lucide-react"
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -126,14 +140,97 @@ type TopicScore = {
 
 type Phase = "setup" | "quiz" | "results"
 
+// Study plan resource map
+const topicResources: Record<string, { resources: string[]; keyTopics: string[] }> = {
+  "Data Structures": {
+    resources: [
+      "GeeksforGeeks Data Structures guide",
+      "Visualgo.net for visual learning",
+      "LeetCode Easy-tagged DS problems",
+    ],
+    keyTopics: ["Arrays & Linked Lists", "Stacks & Queues", "Trees & Graphs", "Hash Tables"],
+  },
+  Algorithms: {
+    resources: [
+      "Introduction to Algorithms (CLRS) chapters 1-8",
+      "AlgoExpert video explanations",
+      "HackerRank algorithm track",
+    ],
+    keyTopics: ["Sorting algorithms", "Divide & Conquer", "Greedy methods", "Dynamic Programming basics"],
+  },
+  OOP: {
+    resources: [
+      "Head First Object-Oriented Design",
+      "Refactoring Guru design patterns",
+      "Practice SOLID principles in mini-projects",
+    ],
+    keyTopics: ["SOLID Principles", "Inheritance vs Composition", "Polymorphism", "Design Patterns"],
+  },
+  Databases: {
+    resources: [
+      "Stanford DB course on YouTube",
+      "SQLZoo interactive exercises",
+      "MongoDB University free courses",
+    ],
+    keyTopics: ["Normalization (1NF-BCNF)", "ACID properties", "Indexing & Optimization", "SQL Joins & Subqueries"],
+  },
+  Networking: {
+    resources: [
+      "Computer Networking: A Top-Down Approach textbook",
+      "Cisco Networking Academy free modules",
+      "Wireshark labs for hands-on practice",
+    ],
+    keyTopics: ["OSI & TCP/IP models", "Routing & Switching", "HTTP/HTTPS & TLS", "DNS & DHCP"],
+  },
+}
+
+function generateStudyPlan(topicScores: TopicScore[]) {
+  const weakTopics = topicScores
+    .map((ts) => ({
+      ...ts,
+      accuracy: Math.round((ts.correct / ts.total) * 100),
+      gap: 100 - Math.round((ts.correct / ts.total) * 100),
+    }))
+    .filter((ts) => ts.accuracy < 100)
+    .sort((a, b) => a.accuracy - b.accuracy)
+
+  return weakTopics.map((ts, index) => {
+    const daysNeeded = ts.gap >= 50 ? 7 : ts.gap >= 25 ? 5 : 3
+    const minsPerDay = ts.gap >= 50 ? 45 : ts.gap >= 25 ? 30 : 20
+    const targetAccuracy = Math.min(100, ts.accuracy + Math.round(ts.gap * 0.7))
+    const res = topicResources[ts.topic] || { resources: [], keyTopics: [] }
+
+    return {
+      priority: index + 1,
+      topic: ts.topic,
+      currentAccuracy: ts.accuracy,
+      targetAccuracy,
+      daysNeeded,
+      minsPerDay,
+      resources: res.resources,
+      keyTopics: res.keyTopics,
+      mistakes: ts.mistakes,
+    }
+  })
+}
+
+const QUIZ_STORAGE_KEY = "edubridge_quiz_results"
+
 export function DiagnosticClient() {
   const [phase, setPhase] = useState<Phase>("setup")
   const [subject, setSubject] = useState("computer-science")
+  const [material, setMaterial] = useState("")
+  const [materialError, setMaterialError] = useState(false)
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<(number | null)[]>(Array(quizQuestions.length).fill(null))
   const [startTime, setStartTime] = useState<number>(Date.now())
 
   const handleStart = () => {
+    if (!material.trim()) {
+      setMaterialError(true)
+      return
+    }
+    setMaterialError(false)
     setPhase("quiz")
     setCurrentQ(0)
     setAnswers(Array(quizQuestions.length).fill(null))
@@ -177,44 +274,109 @@ export function DiagnosticClient() {
 
   const totalCorrect = answers.filter((a, i) => a === quizQuestions[i].correct).length
 
+  // Persist results to localStorage when entering results phase
+  useEffect(() => {
+    if (phase === "results") {
+      const topicScores = getTopicScores()
+      const result = {
+        topicScores: topicScores.map((ts) => ({
+          topic: ts.topic,
+          correct: ts.correct,
+          total: ts.total,
+        })),
+        totalCorrect,
+        totalQuestions: quizQuestions.length,
+        timestamp: Date.now(),
+        material: material.trim(),
+      }
+      try {
+        localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(result))
+      } catch {
+        // Silently fail if localStorage is not available
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
   if (phase === "setup") {
     return (
       <motion.div initial="hidden" animate="visible" variants={stagger} className="flex justify-center">
-      <Card className={`${glassCard} mx-auto max-w-lg`}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display">
-            <Brain className="size-5 text-primary" />
-            Start Diagnostic Assessment
-          </CardTitle>
-          <CardDescription>
-            Choose a subject to begin a 10-question diagnostic test that analyzes your strengths and weaknesses.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <Select value={subject} onValueChange={setSubject}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Subject" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="computer-science">Computer Science</SelectItem>
-              <SelectItem value="mathematics">Mathematics</SelectItem>
-              <SelectItem value="physics">Physics</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">Assessment Details:</p>
-            <ul className="mt-2 flex flex-col gap-1">
-              <li>10 diagnostic questions across 5 topics</li>
-              <li>ML-based scoring analyzes accuracy and time spent</li>
-              <li>Generates topic strength heatmap and improvement plan</li>
-            </ul>
-          </div>
-          <Button onClick={handleStart} className="gap-2">
-            Begin Assessment
-            <ArrowRight className="size-4" />
-          </Button>
-        </CardContent>
-      </Card>
+        <Card className={`${glassCard} mx-auto max-w-lg`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display">
+              <Brain className="size-5 text-primary" />
+              Start Diagnostic Assessment
+            </CardTitle>
+            <CardDescription>
+              Choose a subject and provide your study material to begin a 10-question diagnostic test that analyzes your strengths and weaknesses.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Subject" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="computer-science">Computer Science</SelectItem>
+                <SelectItem value="mathematics">Mathematics</SelectItem>
+                <SelectItem value="physics">Physics</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Mandatory Material Input */}
+            <div className="flex flex-col gap-2">
+              <label htmlFor="material-input" className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <FileText className="size-4 text-primary" />
+                Study Material / Notes
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  Required
+                </Badge>
+              </label>
+              <Textarea
+                id="material-input"
+                placeholder="Paste your study material, lecture notes, textbook excerpts, or any reference content here. This helps generate a more accurate and personalized study plan based on your assessment results..."
+                value={material}
+                onChange={(e) => {
+                  setMaterial(e.target.value)
+                  if (e.target.value.trim()) setMaterialError(false)
+                }}
+                rows={5}
+                className={`resize-none bg-card/50 text-sm ${
+                  materialError ? "border-destructive ring-1 ring-destructive" : ""
+                }`}
+              />
+              {materialError && (
+                <p className="flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="size-3" />
+                  Please paste your study material before starting the assessment.
+                </p>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                {material.trim().length > 0
+                  ? `${material.trim().split(/\s+/).length} words entered`
+                  : "Provide notes, textbook content, or lecture material to personalize your study plan."}
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Assessment Details:</p>
+              <ul className="mt-2 flex flex-col gap-1">
+                <li>10 diagnostic questions across 5 topics</li>
+                <li>ML-based scoring analyzes accuracy and time spent</li>
+                <li>Generates topic strength heatmap and improvement plan</li>
+                <li>Creates personalized study plan based on your material</li>
+              </ul>
+            </div>
+            <Button
+              onClick={handleStart}
+              disabled={!material.trim()}
+              className="gap-2"
+            >
+              Begin Assessment
+              <ArrowRight className="size-4" />
+            </Button>
+          </CardContent>
+        </Card>
       </motion.div>
     )
   }
@@ -268,113 +430,284 @@ export function DiagnosticClient() {
 
   // Results phase
   const topicScores = getTopicScores()
+  const studyPlan = generateStudyPlan(topicScores)
+  const totalStudyDays = studyPlan.reduce((sum, s) => sum + s.daysNeeded, 0)
+
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
       {/* Score Summary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className={glassCard}>
-          <CardContent className="flex flex-col items-center py-6">
-            <span className="font-display text-4xl font-bold text-primary">{totalCorrect}/{quizQuestions.length}</span>
-            <span className="mt-1 text-sm text-muted-foreground">Overall Score</span>
-          </CardContent>
-        </Card>
-        <Card className={glassCard}>
-          <CardContent className="flex flex-col items-center py-6">
-            <span className="font-display text-4xl font-bold text-foreground">{Math.round((totalCorrect / quizQuestions.length) * 100)}%</span>
-            <span className="mt-1 text-sm text-muted-foreground">Accuracy</span>
-          </CardContent>
-        </Card>
-        <Card className={glassCard}>
-          <CardContent className="flex flex-col items-center py-6">
-            <span className="font-display text-4xl font-bold text-foreground">{Math.round((Date.now() - startTime) / 1000)}s</span>
-            <span className="mt-1 text-sm text-muted-foreground">Total Time</span>
-          </CardContent>
-        </Card>
+        <motion.div variants={fadeUp}>
+          <Card className={glassCard}>
+            <CardContent className="flex flex-col items-center py-6">
+              <span className="font-display text-4xl font-bold text-primary">
+                {totalCorrect}/{quizQuestions.length}
+              </span>
+              <span className="mt-1 text-sm text-muted-foreground">Overall Score</span>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div variants={fadeUp}>
+          <Card className={glassCard}>
+            <CardContent className="flex flex-col items-center py-6">
+              <span className="font-display text-4xl font-bold text-foreground">
+                {Math.round((totalCorrect / quizQuestions.length) * 100)}%
+              </span>
+              <span className="mt-1 text-sm text-muted-foreground">Accuracy</span>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div variants={fadeUp}>
+          <Card className={glassCard}>
+            <CardContent className="flex flex-col items-center py-6">
+              <span className="font-display text-4xl font-bold text-foreground">
+                {Math.round((Date.now() - startTime) / 1000)}s
+              </span>
+              <span className="mt-1 text-sm text-muted-foreground">Total Time</span>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Topic Strength Heatmap */}
-      <Card className={glassCard}>
-        <CardHeader>
-          <CardTitle className="font-display">Topic Strength Heatmap</CardTitle>
-          <CardDescription>Visual breakdown of performance across topics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            {topicScores.map((ts) => {
-              const pct = Math.round((ts.correct / ts.total) * 100)
-              const color =
-                pct >= 80 ? "bg-chart-5" : pct >= 50 ? "bg-accent" : "bg-destructive"
-              const label = pct >= 80 ? "Strong" : pct >= 50 ? "Average" : "Weak"
-              return (
-                <div key={ts.topic} className="flex items-center gap-4">
-                  <span className="w-32 text-sm font-medium text-foreground">{ts.topic}</span>
-                  <div className="relative flex-1 h-8 rounded-md bg-muted overflow-hidden">
-                    <div
-                      className={`h-full ${color} transition-all rounded-md`}
-                      style={{ width: `${pct}%` }}
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
-                      {pct}%
-                    </span>
-                  </div>
-                  <Badge
-                    variant={pct >= 80 ? "default" : pct >= 50 ? "secondary" : "destructive"}
-                    className="w-20 justify-center"
-                  >
-                    {label}
-                  </Badge>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Improvement Plan */}
-      <Card className={glassCard}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display">
-            <Zap className="size-5 text-accent" />
-            Personalized Improvement Plan
-          </CardTitle>
-          <CardDescription>AI-generated recommendations based on your performance</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            {topicScores
-              .filter((ts) => ts.correct / ts.total < 1)
-              .sort((a, b) => a.correct / a.total - b.correct / b.total)
-              .map((ts) => {
+      <motion.div variants={fadeUp}>
+        <Card className={glassCard}>
+          <CardHeader>
+            <CardTitle className="font-display">Topic Strength Heatmap</CardTitle>
+            <CardDescription>Visual breakdown of performance across topics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              {topicScores.map((ts) => {
                 const pct = Math.round((ts.correct / ts.total) * 100)
+                const color =
+                  pct >= 80 ? "bg-chart-5" : pct >= 50 ? "bg-accent" : "bg-destructive"
+                const label = pct >= 80 ? "Strong" : pct >= 50 ? "Average" : "Weak"
                 return (
-                  <div key={ts.topic} className="rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-display text-sm font-semibold text-foreground">{ts.topic}</h4>
-                      <Badge variant={pct >= 50 ? "secondary" : "destructive"}>
-                        {ts.correct}/{ts.total} correct
-                      </Badge>
+                  <div key={ts.topic} className="flex items-center gap-4">
+                    <span className="w-32 text-sm font-medium text-foreground">{ts.topic}</span>
+                    <div className="relative h-8 flex-1 overflow-hidden rounded-md bg-muted">
+                      <div
+                        className={`h-full ${color} rounded-md transition-all`}
+                        style={{ width: `${pct}%` }}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
+                        {pct}%
+                      </span>
                     </div>
-                    {ts.mistakes.length > 0 && (
-                      <div className="mt-3 flex flex-col gap-2">
-                        <p className="text-xs font-medium text-muted-foreground">Missed questions:</p>
-                        {ts.mistakes.map((m, i) => (
-                          <div key={i} className="flex items-start gap-2 text-xs text-foreground">
-                            <XCircle className="mt-0.5 size-3 shrink-0 text-destructive" />
-                            {m}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="mt-3 rounded-md bg-primary/5 px-3 py-2 text-xs text-primary">
-                      <CheckCircle2 className="mb-0.5 mr-1 inline size-3" />
-                      Recommendation: Review {ts.topic.toLowerCase()} fundamentals and attempt adaptive practice set.
-                    </div>
+                    <Badge
+                      variant={pct >= 80 ? "default" : pct >= 50 ? "secondary" : "destructive"}
+                      className="w-20 justify-center"
+                    >
+                      {label}
+                    </Badge>
                   </div>
                 )
               })}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Submitted Material Reference */}
+      {material.trim() && (
+        <motion.div variants={fadeUp}>
+          <Card className={glassCard}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-display">
+                <FileText className="size-5 text-primary" />
+                Your Study Material
+              </CardTitle>
+              <CardDescription>Reference material submitted for personalized analysis</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-40 overflow-y-auto rounded-lg bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
+                {material}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {material.trim().split(/\s+/).length} words -- Used to tailor your study plan below.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Improvement Plan */}
+      <motion.div variants={fadeUp}>
+        <Card className={glassCard}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display">
+              <Zap className="size-5 text-accent" />
+              Personalized Improvement Plan
+            </CardTitle>
+            <CardDescription>AI-generated recommendations based on your performance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              {topicScores
+                .filter((ts) => ts.correct / ts.total < 1)
+                .sort((a, b) => a.correct / a.total - b.correct / b.total)
+                .map((ts) => {
+                  const pct = Math.round((ts.correct / ts.total) * 100)
+                  return (
+                    <div key={ts.topic} className="rounded-lg border border-border p-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-display text-sm font-semibold text-foreground">{ts.topic}</h4>
+                        <Badge variant={pct >= 50 ? "secondary" : "destructive"}>
+                          {ts.correct}/{ts.total} correct
+                        </Badge>
+                      </div>
+                      {ts.mistakes.length > 0 && (
+                        <div className="mt-3 flex flex-col gap-2">
+                          <p className="text-xs font-medium text-muted-foreground">Missed questions:</p>
+                          {ts.mistakes.map((m, i) => (
+                            <div key={i} className="flex items-start gap-2 text-xs text-foreground">
+                              <XCircle className="mt-0.5 size-3 shrink-0 text-destructive" />
+                              {m}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="mt-3 rounded-md bg-primary/5 px-3 py-2 text-xs text-primary">
+                        <CheckCircle2 className="mb-0.5 mr-1 inline size-3" />
+                        Recommendation: Review {ts.topic.toLowerCase()} fundamentals and attempt adaptive practice set.
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Recommended Study Plan */}
+      {studyPlan.length > 0 && (
+        <motion.div variants={fadeUp}>
+          <Card className={glassCard}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-display">
+                <CalendarDays className="size-5 text-primary" />
+                Recommended Study Plan
+              </CardTitle>
+              <CardDescription>
+                Prioritized study schedule to increase your accuracy -- {totalStudyDays} days total
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              {/* Plan overview */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg bg-primary/5 p-3 text-center">
+                  <p className="font-display text-2xl font-bold text-primary">{studyPlan.length}</p>
+                  <p className="text-xs text-muted-foreground">Topics to Improve</p>
+                </div>
+                <div className="rounded-lg bg-primary/5 p-3 text-center">
+                  <p className="font-display text-2xl font-bold text-primary">{totalStudyDays}</p>
+                  <p className="text-xs text-muted-foreground">Days Planned</p>
+                </div>
+                <div className="rounded-lg bg-primary/5 p-3 text-center">
+                  <p className="font-display text-2xl font-bold text-primary">
+                    {Math.round(studyPlan.reduce((s, p) => s + p.targetAccuracy, 0) / studyPlan.length)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Target Avg Accuracy</p>
+                </div>
+              </div>
+
+              {/* Topic study cards */}
+              {studyPlan.map((plan) => {
+                const accuracyColor =
+                  plan.currentAccuracy >= 50 ? "text-accent" : "text-destructive"
+                return (
+                  <div
+                    key={plan.topic}
+                    className="rounded-xl border border-border bg-card/30 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 font-display text-sm font-bold text-primary">
+                          {plan.priority}
+                        </div>
+                        <div>
+                          <h4 className="font-display text-sm font-semibold text-foreground">
+                            {plan.topic}
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Priority #{plan.priority} -- Focus area
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">
+                        {plan.daysNeeded} days
+                      </Badge>
+                    </div>
+
+                    {/* Accuracy progress bar */}
+                    <div className="mt-4 flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="mb-1 flex justify-between text-[11px]">
+                          <span className={accuracyColor}>Current: {plan.currentAccuracy}%</span>
+                          <span className="text-primary">Target: {plan.targetAccuracy}%</span>
+                        </div>
+                        <div className="relative h-2 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="absolute left-0 top-0 h-full rounded-full bg-muted-foreground/30"
+                            style={{ width: `${plan.targetAccuracy}%` }}
+                          />
+                          <div
+                            className="absolute left-0 top-0 h-full rounded-full bg-primary"
+                            style={{ width: `${plan.currentAccuracy}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Daily goal */}
+                    <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                      <Clock className="size-3.5 text-muted-foreground" />
+                      <span className="text-xs text-foreground">
+                        Study <strong>{plan.minsPerDay} mins/day</strong> for{" "}
+                        <strong>{plan.daysNeeded} days</strong>
+                      </span>
+                    </div>
+
+                    {/* Key topics to review */}
+                    {plan.keyTopics.length > 0 && (
+                      <div className="mt-3">
+                        <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <Target className="size-3" /> Key Topics to Review
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {plan.keyTopics.map((kt) => (
+                            <Badge key={kt} variant="secondary" className="text-[10px]">
+                              {kt}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Resources */}
+                    {plan.resources.length > 0 && (
+                      <div className="mt-3">
+                        <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <BookOpen className="size-3" /> Recommended Resources
+                        </p>
+                        <ul className="flex flex-col gap-1">
+                          {plan.resources.map((r, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                              <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-primary" />
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       <div className="flex gap-3">
         <Button
