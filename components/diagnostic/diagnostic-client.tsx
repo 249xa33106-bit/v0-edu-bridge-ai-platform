@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -26,7 +25,6 @@ import {
   CalendarDays,
   BookOpen,
   Target,
-  AlertCircle,
 } from "lucide-react"
 
 const stagger = {
@@ -219,18 +217,11 @@ const QUIZ_STORAGE_KEY = "edubridge_quiz_results"
 export function DiagnosticClient() {
   const [phase, setPhase] = useState<Phase>("setup")
   const [subject, setSubject] = useState("computer-science")
-  const [material, setMaterial] = useState("")
-  const [materialError, setMaterialError] = useState(false)
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<(number | null)[]>(Array(quizQuestions.length).fill(null))
   const [startTime, setStartTime] = useState<number>(Date.now())
 
   const handleStart = () => {
-    if (!material.trim()) {
-      setMaterialError(true)
-      return
-    }
-    setMaterialError(false)
     setPhase("quiz")
     setCurrentQ(0)
     setAnswers(Array(quizQuestions.length).fill(null))
@@ -287,7 +278,6 @@ export function DiagnosticClient() {
         totalCorrect,
         totalQuestions: quizQuestions.length,
         timestamp: Date.now(),
-        material: material.trim(),
         subject,
       }
       try {
@@ -328,7 +318,7 @@ export function DiagnosticClient() {
               Start Diagnostic Assessment
             </CardTitle>
             <CardDescription>
-              Choose a subject and provide your study material to begin a 10-question diagnostic test that analyzes your strengths and weaknesses.
+              Choose a subject to begin a 10-question diagnostic test that analyzes your strengths and weaknesses.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -343,53 +333,17 @@ export function DiagnosticClient() {
               </SelectContent>
             </Select>
 
-            {/* Mandatory Material Input */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="material-input" className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <FileText className="size-4 text-primary" />
-                Study Material / Notes
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                  Required
-                </Badge>
-              </label>
-              <Textarea
-                id="material-input"
-                placeholder="Paste your study material, lecture notes, textbook excerpts, or any reference content here. This helps generate a more accurate and personalized study plan based on your assessment results..."
-                value={material}
-                onChange={(e) => {
-                  setMaterial(e.target.value)
-                  if (e.target.value.trim()) setMaterialError(false)
-                }}
-                rows={5}
-                className={`resize-none bg-card/50 text-sm ${
-                  materialError ? "border-destructive ring-1 ring-destructive" : ""
-                }`}
-              />
-              {materialError && (
-                <p className="flex items-center gap-1 text-xs text-destructive">
-                  <AlertCircle className="size-3" />
-                  Please paste your study material before starting the assessment.
-                </p>
-              )}
-              <p className="text-[11px] text-muted-foreground">
-                {material.trim().length > 0
-                  ? `${material.trim().split(/\s+/).length} words entered`
-                  : "Provide notes, textbook content, or lecture material to personalize your study plan."}
-              </p>
-            </div>
-
             <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Assessment Details:</p>
               <ul className="mt-2 flex flex-col gap-1">
                 <li>10 diagnostic questions across 5 topics</li>
                 <li>ML-based scoring analyzes accuracy and time spent</li>
                 <li>Generates topic strength heatmap and improvement plan</li>
-                <li>Creates personalized study plan based on your material</li>
+                <li>Creates personalized study plan based on your performance</li>
               </ul>
             </div>
             <Button
               onClick={handleStart}
-              disabled={!material.trim()}
               className="gap-2"
             >
               Begin Assessment
@@ -528,29 +482,6 @@ export function DiagnosticClient() {
           </CardContent>
         </Card>
       </motion.div>
-
-      {/* Submitted Material Reference */}
-      {material.trim() && (
-        <motion.div variants={fadeUp}>
-          <Card className={glassCard}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-display">
-                <FileText className="size-5 text-primary" />
-                Your Study Material
-              </CardTitle>
-              <CardDescription>Reference material submitted for personalized analysis</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-40 overflow-y-auto rounded-lg bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
-                {material}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {material.trim().split(/\s+/).length} words -- Used to tailor your study plan below.
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
 
       {/* Improvement Plan */}
       <motion.div variants={fadeUp}>
