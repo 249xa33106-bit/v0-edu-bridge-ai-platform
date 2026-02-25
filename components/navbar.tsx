@@ -63,8 +63,9 @@ export function Navbar() {
             width={32}
             height={32}
             className="rounded-lg object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-purple-500/25"
-            style={{ width: 32, height: 32 }}
+            style={{ width: "auto", height: "auto" }}
             loading="eager"
+            priority
           />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
             EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
