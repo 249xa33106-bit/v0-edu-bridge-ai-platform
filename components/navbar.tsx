@@ -11,6 +11,7 @@ import {
   BarChart3,
   Route,
   FlaskConical,
+  FolderOpen,
   Menu,
   X,
   LogOut,
@@ -24,6 +25,7 @@ const studentNavItems = [
   { href: "/learn", label: "AI Tutor", icon: BookOpen },
   { href: "/diagnostic", label: "Gap Detection", icon: Brain },
   { href: "/study-plan", label: "Study Plan", icon: Route },
+  { href: "/materials", label: "Materials", icon: FolderOpen },
   { href: "/career", label: "Career Intel", icon: BarChart3 },
   { href: "/lab", label: "Virtual Lab", icon: FlaskConical },
 ]
