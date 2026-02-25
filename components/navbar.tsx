@@ -62,9 +62,7 @@ export function Navbar() {
             alt="EduBridge AI logo"
             width={32}
             height={32}
-            className="rounded-lg object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-purple-500/25"
-            style={{ width: "auto", height: "auto" }}
-            loading="eager"
+            className="size-8 rounded-lg object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-purple-500/25"
             priority
           />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
