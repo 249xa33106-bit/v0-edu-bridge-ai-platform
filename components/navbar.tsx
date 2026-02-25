@@ -58,10 +58,9 @@ export function Navbar() {
           <Image
             src="/images/logo.jpg"
             alt="EduBridge AI logo"
-            width={40}
-            height={40}
-            className="rounded-lg transition-transform duration-300 group-hover:scale-110"
-            style={{ width: "auto", height: "auto" }}
+            width={32}
+            height={32}
+            className="size-8 rounded-lg object-cover transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-purple-500/25"
           />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
             EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
@@ -77,21 +76,21 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                    "group/link relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                      ? "bg-purple-500/15 text-purple-300"
+                      : "text-muted-foreground hover:bg-purple-500/10 hover:text-purple-200"
                   )}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="nav-active"
-                      className="absolute inset-0 rounded-lg bg-primary/10"
+                      className="absolute inset-0 rounded-lg bg-purple-500/15"
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     />
                   )}
                   <span className="relative flex items-center gap-1.5">
-                    <item.icon className="size-4" />
+                    <item.icon className="size-4 transition-all duration-300 group-hover/link:scale-125 group-hover/link:text-purple-400" />
                     {item.label}
                   </span>
                 </Link>
@@ -103,8 +102,8 @@ export function Navbar() {
         <div className="hidden items-center gap-3 lg:flex">
           {user ? (
             <>
-              <div className="flex items-center gap-2 rounded-full px-3 py-1.5 glass-card">
-                <div className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <div className="group/user flex items-center gap-2 rounded-full px-3 py-1.5 glass-card transition-all duration-300 hover:bg-purple-500/10">
+                <div className="flex size-7 items-center justify-center rounded-full bg-purple-500/15 text-purple-400 transition-all duration-300 group-hover/user:scale-110 group-hover/user:bg-purple-500/25">
                   <User className="size-3.5" />
                 </div>
                 <div className="flex flex-col">
@@ -112,8 +111,8 @@ export function Navbar() {
                   <span className="text-[10px] leading-none text-muted-foreground capitalize">{user.role}</span>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5 btn-glow">
-                <LogOut className="size-3.5" />
+              <Button variant="outline" size="sm" onClick={handleLogout} className="group/logout gap-1.5 btn-glow hover:border-purple-500/30 hover:text-purple-300">
+                <LogOut className="size-3.5 transition-all duration-300 group-hover/logout:scale-110 group-hover/logout:text-purple-400" />
                 Logout
               </Button>
             </>
@@ -172,13 +171,13 @@ export function Navbar() {
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
                         className={cn(
-                          "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                          "group/mlink flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                           isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                            ? "bg-purple-500/15 text-purple-300"
+                            : "text-muted-foreground hover:bg-purple-500/10 hover:text-purple-200"
                         )}
                       >
-                        <item.icon className="size-4" />
+                        <item.icon className="size-4 transition-all duration-300 group-hover/mlink:scale-125 group-hover/mlink:text-purple-400" />
                         {item.label}
                       </Link>
                     )
