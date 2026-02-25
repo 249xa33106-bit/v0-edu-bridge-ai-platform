@@ -62,6 +62,7 @@ export function Navbar() {
             height={40}
             className="rounded-lg transition-transform duration-300 group-hover:scale-110"
             style={{ width: "auto", height: "auto" }}
+            priority
           />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
             EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
