@@ -154,7 +154,7 @@ export default function RegisterPage() {
             width={48}
             height={48}
             className="rounded-lg transition-transform duration-300 group-hover:scale-110"
-            style={{ width: "auto", height: "auto" }}
+            style={{ width: 48, height: 48 }}
           />
           <span className="font-display text-2xl font-bold tracking-tight text-foreground">
             EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>

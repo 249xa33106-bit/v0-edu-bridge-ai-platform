@@ -235,22 +235,22 @@ function exportPerformanceCSV(topicData: { topic: string; avgScore: number; stud
 export function TeacherClient() {
   const [students, setStudents] = useState<StudentRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [dbStatus, setDbStatus] = useState<"connected" | "not_configured" | "error">("connected")
   const [searchQuery, setSearchQuery] = useState("")
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchStudents = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true)
     else setLoading(true)
-    setError("")
 
     try {
       const res = await fetch("/api/students")
-      if (!res.ok) throw new Error("Failed to fetch")
       const data = await res.json()
       setStudents(data.students || [])
+      setDbStatus(data.dbStatus || "connected")
     } catch {
-      setError("Could not connect to the database. Please check your MongoDB connection.")
+      setDbStatus("error")
+      setStudents([])
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -428,57 +428,81 @@ export function TeacherClient() {
     )
   }
 
-  /* ---- Error state ---- */
-
-  if (error) {
-    return (
-      <Card className={glassCard}>
-        <CardContent className="py-12">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10">
-              <AlertTriangle className="size-6 text-destructive" />
-            </div>
-            <div>
-              <p className="font-display text-lg font-semibold text-foreground">Database Connection Error</p>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">{error}</p>
-            </div>
-            <Button onClick={() => fetchStudents()} className="gap-2">
-              <RefreshCw className="size-4" />
-              Retry Connection
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
+  /* ---- No hard error block — dbStatus is shown inline ---- */
 
   /* ---- Main render ---- */
 
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
-      {/* DB connected banner */}
+      {/* DB status banner */}
       <motion.div variants={fadeUp}>
-        <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Database className="size-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">
-              Connected to MongoDB
-            </span>
-            <Badge variant="secondary" className="text-[10px]">
-              {students.length} student{students.length !== 1 ? "s" : ""} synced
-            </Badge>
+        {dbStatus === "connected" ? (
+          <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Database className="size-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">
+                Connected to MongoDB
+              </span>
+              <Badge variant="secondary" className="text-[10px]">
+                {students.length} student{students.length !== 1 ? "s" : ""} synced
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fetchStudents(true)}
+              disabled={refreshing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => fetchStudents(true)}
-            disabled={refreshing}
-            className="gap-1.5"
-          >
-            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
+        ) : dbStatus === "not_configured" ? (
+          <div className="flex items-center justify-between rounded-xl border border-yellow-500/30 bg-yellow-500/5 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-yellow-500" />
+              <span className="text-sm font-medium text-foreground">
+                MongoDB not configured
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Add MONGODB_URI in your environment variables to enable live student data
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fetchStudents(true)}
+              disabled={refreshing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 text-destructive" />
+              <span className="text-sm font-medium text-foreground">
+                Database connection failed
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Check your MONGODB_URI and network connection
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fetchStudents(true)}
+              disabled={refreshing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Retry
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       {/* Overview Stats */}

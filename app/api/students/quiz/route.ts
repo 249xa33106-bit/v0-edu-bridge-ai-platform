@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { connectToDatabase } from "@/lib/mongodb"
+import { connectToDatabase, isMongoConfigured } from "@/lib/mongodb"
 import { StudentModel } from "@/lib/models/student"
 
 export async function POST(req: NextRequest) {
@@ -13,6 +13,10 @@ export async function POST(req: NextRequest) {
     }
     if (!topicScores || totalCorrect === undefined || totalQuestions === undefined) {
       return NextResponse.json({ error: "Missing quiz result data" }, { status: 400 })
+    }
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json({ success: false, dbStatus: "not_configured" })
     }
 
     await connectToDatabase()

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { put } from "@vercel/blob"
-import { connectToDatabase } from "@/lib/mongodb"
+import { connectToDatabase, isMongoConfigured } from "@/lib/mongodb"
 import { FileModel } from "@/lib/models/file"
 
 const ALLOWED_TYPES = [
@@ -37,6 +37,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "File size must be under 10 MB." },
         { status: 400 }
+      )
+    }
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json(
+        { error: "Database is not configured. Please add MONGODB_URI to environment variables." },
+        { status: 503 }
       )
     }
 

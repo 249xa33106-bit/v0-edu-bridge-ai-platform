@@ -1,13 +1,5 @@
 import mongoose from "mongoose"
 
-const MONGODB_URI = process.env.MONGODB_URI
-
-if (!MONGODB_URI) {
-  throw new Error(
-    "Please define the MONGODB_URI environment variable inside .env.local or your Vercel project settings."
-  )
-}
-
 interface MongooseCache {
   conn: typeof mongoose | null
   promise: Promise<typeof mongoose> | null
@@ -24,13 +16,23 @@ if (!global.mongooseCache) {
   global.mongooseCache = cached
 }
 
+export function isMongoConfigured(): boolean {
+  return !!process.env.MONGODB_URI
+}
+
 export async function connectToDatabase() {
+  const uri = process.env.MONGODB_URI
+
+  if (!uri) {
+    throw new Error("MONGODB_URI is not configured")
+  }
+
   if (cached.conn) {
     return cached.conn
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI!, {
+    cached.promise = mongoose.connect(uri, {
       bufferCommands: false,
     })
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { del } from "@vercel/blob"
-import { connectToDatabase } from "@/lib/mongodb"
+import { connectToDatabase, isMongoConfigured } from "@/lib/mongodb"
 import { FileModel } from "@/lib/models/file"
 
 // GET /api/files?userId=xxx
@@ -9,6 +9,10 @@ export async function GET(request: NextRequest) {
     const userId = request.nextUrl.searchParams.get("userId")
     if (!userId) {
       return NextResponse.json({ error: "userId is required." }, { status: 400 })
+    }
+
+    if (!isMongoConfigured()) {
+      return NextResponse.json({ files: [], dbStatus: "not_configured" })
     }
 
     await connectToDatabase()
