@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from "@/components/auth/auth-provider"
 import {
   Upload,
   Languages,
@@ -23,7 +24,21 @@ import {
   FileText,
   Sparkles,
   BookOpen,
+  FolderOpen,
+  Check,
+  Loader2,
 } from "lucide-react"
+
+interface MaterialFile {
+  id: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  subject: string
+  description: string
+  uploadedAt: string
+  dataUrl: string | null
+}
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -81,12 +96,54 @@ const qaExamples = [
 ]
 
 export function LearnClient() {
+  const { user } = useAuth()
   const [notes, setNotes] = useState(sampleNotes)
   const [language, setLanguage] = useState("hindi")
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<{ simplified: string; translated: string } | null>(null)
   const [question, setQuestion] = useState("")
   const [chatHistory, setChatHistory] = useState<{ role: "user" | "assistant"; content: string }[]>([])
+  const [materials, setMaterials] = useState<MaterialFile[]>([])
+  const [showMaterials, setShowMaterials] = useState(false)
+  const [loadingMaterial, setLoadingMaterial] = useState<string | null>(null)
+
+  // Load available materials from localStorage
+  useEffect(() => {
+    if (!user) return
+    try {
+      const raw = localStorage.getItem(`edubridge_materials_${user.id}`)
+      if (raw) {
+        const parsed: MaterialFile[] = JSON.parse(raw)
+        setMaterials(parsed)
+      }
+    } catch {
+      // silently fail
+    }
+  }, [user])
+
+  const loadMaterial = (file: MaterialFile) => {
+    setLoadingMaterial(file.id)
+
+    if (file.dataUrl) {
+      try {
+        // dataUrl is a base64 data URL like "data:text/plain;base64,..."
+        const base64Part = file.dataUrl.split(",")[1]
+        if (base64Part) {
+          const text = atob(base64Part)
+          setNotes(text)
+        }
+      } catch {
+        setNotes(`[Loaded material: ${file.fileName}]\n\nUnable to decode file content. Please paste the text manually.`)
+      }
+    } else {
+      setNotes(`[Material: ${file.fileName}]\nSubject: ${file.subject}\n${file.description ? `Description: ${file.description}\n` : ""}\nThis file is too large to preview inline. Please paste the content manually.`)
+    }
+
+    setTimeout(() => {
+      setLoadingMaterial(null)
+      setShowMaterials(false)
+    }, 400)
+  }
 
   const handleProcess = () => {
     if (!notes.trim()) return
@@ -137,11 +194,71 @@ export function LearnClient() {
             <CardDescription>Paste your notes or upload study material</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            {/* Load from Materials button */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-dashed border-primary/30 text-muted-foreground hover:border-primary/60 hover:text-foreground"
+                onClick={() => setShowMaterials(!showMaterials)}
+              >
+                <FolderOpen className="size-4" />
+                {materials.length > 0
+                  ? `Load from Materials (${materials.length})`
+                  : "No materials uploaded yet"}
+              </Button>
+
+              <AnimatePresence>
+                {showMaterials && materials.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-y-auto rounded-xl border border-white/[0.12] bg-card p-2 shadow-xl backdrop-blur-xl"
+                  >
+                    {materials.map((file) => (
+                      <button
+                        key={file.id}
+                        onClick={() => loadMaterial(file)}
+                        disabled={loadingMaterial === file.id}
+                        className="group/mat flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200 hover:bg-purple-500/10"
+                      >
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 transition-all duration-200 group-hover/mat:bg-purple-500/20 group-hover/mat:scale-110">
+                          {loadingMaterial === file.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <FileText className="size-4" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {file.fileName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {file.subject}
+                            {file.description ? ` - ${file.description}` : ""}
+                          </p>
+                        </div>
+                        {loadingMaterial === file.id ? (
+                          <Check className="size-4 shrink-0 text-green-400" />
+                        ) : (
+                          <Badge variant="secondary" className="shrink-0 text-[10px]">
+                            {file.fileType.replace(".", "").toUpperCase()}
+                          </Badge>
+                        )}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={10}
-              placeholder="Paste your notes here..."
+              placeholder="Paste your notes here or load from your materials..."
               className="resize-none text-sm"
             />
             <div className="flex items-center gap-3">
@@ -163,7 +280,7 @@ export function LearnClient() {
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <FileText className="size-3" />
-              Supports PDF, text, and pasted notes
+              Supports PDF, text, and pasted notes -- or load from your Materials
             </div>
           </CardContent>
         </Card>
