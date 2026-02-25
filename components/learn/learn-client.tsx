@@ -108,10 +108,12 @@ export function LearnClient() {
   const [loadingMaterial, setLoadingMaterial] = useState<string | null>(null)
 
   // Load available materials from localStorage
+  // Materials are stored under edubridge_materials_{email} by materials-client
+  const materialsKey = user?.email || "anonymous"
   useEffect(() => {
     if (!user) return
     try {
-      const raw = localStorage.getItem(`edubridge_materials_${user.id}`)
+      const raw = localStorage.getItem(`edubridge_materials_${materialsKey}`)
       if (raw) {
         const parsed: MaterialFile[] = JSON.parse(raw)
         setMaterials(parsed)
@@ -119,7 +121,7 @@ export function LearnClient() {
     } catch {
       // silently fail
     }
-  }, [user])
+  }, [user, materialsKey])
 
   const loadMaterial = (file: MaterialFile) => {
     setLoadingMaterial(file.id)
