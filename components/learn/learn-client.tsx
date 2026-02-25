@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,14 @@ import {
   FileText,
   Sparkles,
   BookOpen,
+  Bot,
+  User,
+  MessageSquare,
+  Loader2,
 } from "lucide-react"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
+import type { UIMessage } from "ai"
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -69,24 +76,56 @@ const translations: Record<string, { simplified: string; translated: string }> =
   },
 }
 
-const qaExamples = [
-  {
-    q: "What is the difference between supervised and unsupervised learning?",
-    a: "Supervised learning uses labeled data (we know the correct answers) to train models, while unsupervised learning works with unlabeled data to find hidden patterns. Think of supervised learning as learning with a teacher who gives you the answers, and unsupervised learning as exploring data on your own to find groups or patterns.",
-  },
-  {
-    q: "Give me an example of supervised learning.",
-    a: "A common example is predicting house prices. You give the model data about houses (size, location, rooms) along with their actual prices. The model learns the relationship and can then predict prices for new houses it has not seen before.",
-  },
+const suggestedQuestions = [
+  "Summarize the key concepts",
+  "Explain this in simpler terms",
+  "Quiz me on this material",
+  "What are the main differences between the topics?",
 ]
+
+function getMessageText(message: UIMessage): string {
+  if (!message.parts || !Array.isArray(message.parts)) return ""
+  return message.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("")
+}
 
 export function LearnClient() {
   const [notes, setNotes] = useState(sampleNotes)
   const [language, setLanguage] = useState("hindi")
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState<{ simplified: string; translated: string } | null>(null)
-  const [question, setQuestion] = useState("")
-  const [chatHistory, setChatHistory] = useState<{ role: "user" | "assistant"; content: string }[]>([])
+  const [chatInput, setChatInput] = useState("")
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/tutor-chat",
+      prepareSendMessagesRequest: ({ id, messages }) => ({
+        body: {
+          id,
+          messages,
+          context: notes,
+        },
+      }),
+    }),
+  })
+
+  const isStreaming = status === "streaming" || status === "submitted"
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+    }
+  }, [messages, status])
+
+  const handleSendMessage = (text?: string) => {
+    const messageText = text || chatInput
+    if (!messageText.trim()) return
+    sendMessage({ text: messageText })
+    if (!text) setChatInput("")
+  }
 
   const handleProcess = () => {
     if (!notes.trim()) return
@@ -95,20 +134,6 @@ export function LearnClient() {
       setResult(translations[language] || translations.hindi)
       setIsProcessing(false)
     }, 1500)
-  }
-
-  const handleAsk = () => {
-    if (!question.trim()) return
-    const newHistory = [...chatHistory, { role: "user" as const, content: question }]
-    const match = qaExamples.find(
-      (qa) => question.toLowerCase().includes("supervised") || question.toLowerCase().includes("example")
-    )
-    const answer =
-      match?.a ||
-      "Based on your uploaded material, Machine Learning enables systems to learn from data automatically. The key distinction is between supervised learning (with labeled data) and unsupervised learning (finding hidden patterns). Would you like me to explain any specific concept in more detail?"
-    newHistory.push({ role: "assistant", content: answer })
-    setChatHistory(newHistory)
-    setQuestion("")
   }
 
   const handleSpeak = (text: string) => {
@@ -238,54 +263,118 @@ export function LearnClient() {
           </Card>
         )}
 
-        {/* Q&A Section */}
+        {/* AI Chatbot Section */}
         <Card className={glassCard}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display text-base">
-              <Mic className="size-4 text-primary" />
-              Contextual Q&A
+              <MessageSquare className="size-4 text-primary" />
+              AI Study Assistant
             </CardTitle>
-            <CardDescription>Ask follow-up questions about your study material</CardDescription>
+            <CardDescription>Ask questions about your study material and get AI-powered explanations</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="mb-4 max-h-60 overflow-y-auto">
-              {chatHistory.length === 0 ? (
-                <p className="text-center text-xs text-muted-foreground py-6">
-                  Ask a question about the uploaded material
-                </p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {chatHistory.map((msg, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-lg px-3 py-2 text-sm ${
-                        msg.role === "user"
-                          ? "ml-auto max-w-[80%] bg-primary text-primary-foreground"
-                          : "mr-auto max-w-[90%] bg-muted text-foreground"
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
-                  ))}
+          <CardContent className="flex flex-col gap-3">
+            {/* Chat messages area */}
+            <div
+              ref={chatScrollRef}
+              className="flex max-h-80 min-h-[200px] flex-col gap-4 overflow-y-auto rounded-lg border border-white/[0.08] bg-white/[0.02] p-3 scroll-smooth"
+            >
+              {messages.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
+                    <Bot className="size-6 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">Ask me anything about your notes</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      I can explain concepts, quiz you, or break down complex topics
+                    </p>
+                  </div>
+                  {/* Suggested questions */}
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {suggestedQuestions.map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => handleSendMessage(q)}
+                        className="rounded-full border border-white/[0.12] bg-white/[0.06] px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/[0.1] hover:text-foreground"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              ) : (
+                <>
+                  {messages.map((message) => {
+                    const text = getMessageText(message)
+                    if (!text) return null
+                    const isUser = message.role === "user"
+                    return (
+                      <div key={message.id} className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                        <div
+                          className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
+                            isUser ? "bg-primary" : "bg-primary/10"
+                          }`}
+                        >
+                          {isUser ? (
+                            <User className="size-3.5 text-primary-foreground" />
+                          ) : (
+                            <Bot className="size-3.5 text-primary" />
+                          )}
+                        </div>
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                            isUser
+                              ? "rounded-tr-sm bg-primary text-primary-foreground"
+                              : "rounded-tl-sm bg-muted text-foreground"
+                          }`}
+                        >
+                          {text}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {/* Streaming indicator */}
+                  {isStreaming && !getMessageText(messages[messages.length - 1]) && (
+                    <div className="flex gap-2.5">
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <Bot className="size-3.5 text-primary" />
+                      </div>
+                      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5">
+                        <div className="flex gap-1">
+                          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0ms]" />
+                          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
+                          <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Input area */}
+            <div className="flex items-end gap-2">
               <Textarea
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Ask about the material..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder={notes.trim() ? "Ask about your study material..." : "Paste study material first, then ask questions..."}
                 rows={1}
                 className="min-h-10 resize-none text-sm"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
-                    handleAsk()
+                    handleSendMessage()
                   }
                 }}
               />
-              <Button size="icon" onClick={handleAsk} disabled={!question.trim()} aria-label="Send question">
-                <Send className="size-4" />
+              <Button
+                size="icon"
+                onClick={() => handleSendMessage()}
+                disabled={!chatInput.trim() || isStreaming}
+                aria-label="Send question"
+                className="shrink-0"
+              >
+                {isStreaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               </Button>
             </div>
           </CardContent>
