@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { GraduationCap, BookOpen, Users, Loader2, Eye, EyeOff } from "lucide-react"
+import { BookOpen, Users, Loader2, Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -109,9 +110,13 @@ export default function LoginPage() {
     <div className="relative z-10 flex min-h-screen flex-col">
       <PageTransition className="flex flex-1 flex-col items-center justify-center px-4 py-12">
         <Link href="/" className="mb-8 flex items-center gap-2.5 group">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20 transition-transform duration-300 group-hover:scale-110">
-            <GraduationCap className="size-6 text-primary-foreground" />
-          </div>
+          <Image
+            src="/images/logo.jpg"
+            alt="EduBridge AI logo"
+            width={48}
+            height={48}
+            className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+          />
           <span className="font-display text-2xl font-bold tracking-tight text-foreground">
             EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
           </span>

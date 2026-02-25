@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -12,7 +13,6 @@ import {
   FlaskConical,
   Menu,
   X,
-  GraduationCap,
   LogOut,
   User,
 } from "lucide-react"
@@ -54,10 +54,14 @@ export function Navbar() {
       className="sticky top-0 z-50 glass-nav"
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/20 transition-transform duration-300 group-hover:scale-110">
-            <GraduationCap className="size-5 text-primary-foreground" />
-          </div>
+        <Link href="/" className="flex items-center gap-2 group">
+          <Image
+            src="/images/logo.jpg"
+            alt="EduBridge AI logo"
+            width={40}
+            height={40}
+            className="rounded-lg transition-transform duration-300 group-hover:scale-110"
+          />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
             EduBridge <span className="bg-gradient-to-r from-primary to-chart-3 bg-clip-text text-transparent">AI</span>
           </span>
