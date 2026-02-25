@@ -28,7 +28,6 @@ import {
   Target,
   AlertCircle,
 } from "lucide-react"
-import { useAuth } from "@/components/auth/auth-provider"
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -218,7 +217,6 @@ function generateStudyPlan(topicScores: TopicScore[]) {
 const QUIZ_STORAGE_KEY = "edubridge_quiz_results"
 
 export function DiagnosticClient() {
-  const { user } = useAuth()
   const [phase, setPhase] = useState<Phase>("setup")
   const [subject, setSubject] = useState("computer-science")
   const [material, setMaterial] = useState("")
@@ -276,7 +274,7 @@ export function DiagnosticClient() {
 
   const totalCorrect = answers.filter((a, i) => a === quizQuestions[i].correct).length
 
-  // Persist results to localStorage + MongoDB when entering results phase
+  // Persist results to localStorage when entering results phase
   useEffect(() => {
     if (phase === "results") {
       const topicScores = getTopicScores()
@@ -290,31 +288,31 @@ export function DiagnosticClient() {
         totalQuestions: quizQuestions.length,
         timestamp: Date.now(),
         material: material.trim(),
+        subject,
       }
-      // Save to localStorage
       try {
+        // Save latest quiz result for career intel
         localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(resultPayload))
-      } catch {
-        // Silently fail if localStorage is not available
-      }
-      // Save to MongoDB via API
-      if (user) {
-        fetch("/api/students/quiz", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            name: user.name,
-            email: user.email,
+
+        // Also append to a student results list for the teacher dashboard
+        const currentUser = JSON.parse(localStorage.getItem("edubridge_session") || "{}")
+        if (currentUser?.userId) {
+          const allResultsRaw = localStorage.getItem("edubridge_all_quiz_results") || "[]"
+          const allResults = JSON.parse(allResultsRaw)
+          allResults.push({
+            userId: currentUser.userId,
+            name: currentUser.name || "Student",
+            email: currentUser.email || "",
             topicScores: resultPayload.topicScores,
             totalCorrect: resultPayload.totalCorrect,
             totalQuestions: resultPayload.totalQuestions,
-            material: resultPayload.material,
-            subject,
-          }),
-        }).catch(() => {
-          // Silently fail -- localStorage is the fallback
-        })
+            subject: resultPayload.subject,
+            timestamp: resultPayload.timestamp,
+          })
+          localStorage.setItem("edubridge_all_quiz_results", JSON.stringify(allResults))
+        }
+      } catch {
+        // Silently fail if localStorage is not available
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

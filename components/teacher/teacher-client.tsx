@@ -8,7 +8,6 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   BarChart,
   Bar,
@@ -33,11 +32,10 @@ import {
   Search,
   RefreshCw,
   UserCheck,
-  Database,
 } from "lucide-react"
 
 /* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
+/*  Types & helpers                                                     */
 /* ------------------------------------------------------------------ */
 
 const stagger = {
@@ -57,24 +55,27 @@ interface TopicScore {
   total: number
 }
 
-interface QuizResult {
-  topicScores: TopicScore[]
-  totalCorrect: number
-  totalQuestions: number
-  material: string
-  subject: string
-  timestamp: string
-}
-
-interface StudentRecord {
-  _id: string
+interface QuizEntry {
   userId: string
   name: string
   email: string
-  quizResults: QuizResult[]
-  lastActive: string
-  createdAt: string
+  topicScores: TopicScore[]
+  totalCorrect: number
+  totalQuestions: number
+  subject: string
+  timestamp: number
 }
+
+interface StudentRecord {
+  userId: string
+  name: string
+  email: string
+  quizResults: QuizEntry[]
+  lastActive: number
+}
+
+const ALL_RESULTS_KEY = "edubridge_all_quiz_results"
+const USERS_KEY = "edubridge_users"
 
 function getBarColor(score: number) {
   if (score >= 75) return "var(--color-chart-1)"
@@ -82,9 +83,9 @@ function getBarColor(score: number) {
   return "var(--color-destructive)"
 }
 
-function formatDate(dateStr: string) {
+function formatDate(ts: number) {
   try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    return new Date(ts).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -116,28 +117,25 @@ function getStatus(score: number): { label: string; variant: "default" | "second
 }
 
 /* ------------------------------------------------------------------ */
-/*  CSV Export                                                         */
+/*  CSV Exports                                                        */
 /* ------------------------------------------------------------------ */
 
-function exportStudentsCSV(students: StudentRecord[]) {
-  const headers = [
-    "Name",
-    "Email",
-    "Quizzes Taken",
-    "Latest Score %",
-    "Avg Score %",
-    "Status",
-    "Weak Topics",
-    "Last Active",
-    "Registered",
-  ]
+function downloadCSV(csv: string, filename: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
+function exportStudentsCSV(students: StudentRecord[]) {
+  const headers = ["Name", "Email", "Quizzes Taken", "Latest Score %", "Avg Score %", "Status", "Weak Topics", "Last Active"]
   const rows = students.map((s) => {
     const latest = getLatestScore(s)
     const avg = getAvgScore(s)
     const status = getStatus(avg)
-
-    // Calculate weak topics from all quiz results
     const topicTotals: Record<string, { correct: number; total: number }> = {}
     s.quizResults.forEach((qr) => {
       qr.topicScores.forEach((ts) => {
@@ -150,34 +148,17 @@ function exportStudentsCSV(students: StudentRecord[]) {
       .filter(([, v]) => v.total > 0 && (v.correct / v.total) * 100 < 60)
       .map(([k]) => k)
       .join("; ")
-
     return [
-      `"${s.name}"`,
-      `"${s.email}"`,
-      s.quizResults.length,
-      latest,
-      avg,
-      status.label,
-      `"${weakTopics}"`,
-      `"${formatDate(s.lastActive)}"`,
-      `"${formatDate(s.createdAt)}"`,
+      `"${s.name}"`, `"${s.email}"`, s.quizResults.length, latest, avg, status.label,
+      `"${weakTopics}"`, `"${formatDate(s.lastActive)}"`,
     ].join(",")
   })
-
-  const csv = [headers.join(","), ...rows].join("\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `student-overview-${new Date().toISOString().split("T")[0]}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCSV([headers.join(","), ...rows].join("\n"), `student-overview-${new Date().toISOString().split("T")[0]}.csv`)
 }
 
 function exportAtRiskCSV(students: StudentRecord[]) {
   const atRisk = students.filter((s) => getAvgScore(s) < 50 && s.quizResults.length > 0)
   const headers = ["Name", "Email", "Avg Score %", "Risk Level", "Weak Topics", "Quizzes Taken"]
-
   const rows = atRisk.map((s) => {
     const avg = getAvgScore(s)
     const topicTotals: Record<string, { correct: number; total: number }> = {}
@@ -192,40 +173,69 @@ function exportAtRiskCSV(students: StudentRecord[]) {
       .filter(([, v]) => v.total > 0 && (v.correct / v.total) * 100 < 60)
       .map(([k]) => k)
       .join("; ")
-
     return [
-      `"${s.name}"`,
-      `"${s.email}"`,
-      avg,
-      avg < 30 ? "High" : avg < 50 ? "Medium" : "Low",
-      `"${weakTopics}"`,
-      s.quizResults.length,
+      `"${s.name}"`, `"${s.email}"`, avg, avg < 30 ? "High" : avg < 50 ? "Medium" : "Low",
+      `"${weakTopics}"`, s.quizResults.length,
     ].join(",")
   })
-
-  const csv = [headers.join(","), ...rows].join("\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `at-risk-students-${new Date().toISOString().split("T")[0]}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCSV([headers.join(","), ...rows].join("\n"), `at-risk-students-${new Date().toISOString().split("T")[0]}.csv`)
 }
 
 function exportPerformanceCSV(topicData: { topic: string; avgScore: number; students: number }[]) {
   const headers = ["Topic", "Avg Score %", "Students Assessed"]
-  const rows = topicData.map((t) => [
-    `"${t.topic}"`, t.avgScore, t.students
-  ].join(","))
-  const csv = [headers.join(","), ...rows].join("\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `topic-performance-${new Date().toISOString().split("T")[0]}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  const rows = topicData.map((t) => [`"${t.topic}"`, t.avgScore, t.students].join(","))
+  downloadCSV([headers.join(","), ...rows].join("\n"), `topic-performance-${new Date().toISOString().split("T")[0]}.csv`)
+}
+
+/* ------------------------------------------------------------------ */
+/*  Build student records from localStorage                            */
+/* ------------------------------------------------------------------ */
+
+function loadStudentsFromStorage(): StudentRecord[] {
+  try {
+    const raw = localStorage.getItem(ALL_RESULTS_KEY)
+    if (!raw) return []
+
+    const entries: QuizEntry[] = JSON.parse(raw)
+    // Group by userId
+    const map: Record<string, StudentRecord> = {}
+    entries.forEach((e) => {
+      if (!map[e.userId]) {
+        map[e.userId] = {
+          userId: e.userId,
+          name: e.name,
+          email: e.email,
+          quizResults: [],
+          lastActive: e.timestamp,
+        }
+      }
+      map[e.userId].quizResults.push(e)
+      if (e.timestamp > map[e.userId].lastActive) {
+        map[e.userId].lastActive = e.timestamp
+      }
+    })
+
+    // Also add registered students with no quizzes
+    const usersRaw = localStorage.getItem(USERS_KEY)
+    if (usersRaw) {
+      const users = JSON.parse(usersRaw)
+      users.forEach((u: { id: string; name: string; email: string; role: string }) => {
+        if (u.role !== "teacher" && !map[u.id]) {
+          map[u.id] = {
+            userId: u.id,
+            name: u.name,
+            email: u.email,
+            quizResults: [],
+            lastActive: Date.now(),
+          }
+        }
+      })
+    }
+
+    return Object.values(map).sort((a, b) => b.lastActive - a.lastActive)
+  } catch {
+    return []
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -235,31 +245,23 @@ function exportPerformanceCSV(topicData: { topic: string; avgScore: number; stud
 export function TeacherClient() {
   const [students, setStudents] = useState<StudentRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [dbStatus, setDbStatus] = useState<"connected" | "not_configured" | "error">("connected")
   const [searchQuery, setSearchQuery] = useState("")
   const [refreshing, setRefreshing] = useState(false)
 
-  const fetchStudents = useCallback(async (showRefresh = false) => {
+  const loadData = useCallback((showRefresh = false) => {
     if (showRefresh) setRefreshing(true)
     else setLoading(true)
-
-    try {
-      const res = await fetch("/api/students")
-      const data = await res.json()
-      setStudents(data.students || [])
-      setDbStatus(data.dbStatus || "connected")
-    } catch {
-      setDbStatus("error")
-      setStudents([])
-    } finally {
+    // Small timeout so the spinner shows for visual feedback
+    setTimeout(() => {
+      setStudents(loadStudentsFromStorage())
       setLoading(false)
       setRefreshing(false)
-    }
+    }, 300)
   }, [])
 
   useEffect(() => {
-    fetchStudents()
-  }, [fetchStudents])
+    loadData()
+  }, [loadData])
 
   /* ---- Computed stats ---- */
 
@@ -277,12 +279,8 @@ export function TeacherClient() {
       studentsWithQuizzes.reduce((sum, s) => sum + getAvgScore(s), 0) / withQuiz
     )
     const atRiskCount = studentsWithQuizzes.filter((s) => getAvgScore(s) < 50).length
-
-    // Engagement: students active in last 7 days
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-    const activeRecently = students.filter(
-      (s) => new Date(s.lastActive).getTime() > weekAgo
-    ).length
+    const activeRecently = students.filter((s) => s.lastActive > weekAgo).length
     const engagementRate = total > 0 ? Math.round((activeRecently / total) * 100) : 0
 
     return { totalStudents: total, avgScore, atRiskCount, engagementRate }
@@ -310,7 +308,6 @@ export function TeacherClient() {
   }, [studentsWithQuizzes])
 
   const engagementTrend = useMemo(() => {
-    // Group quiz submissions by week
     const weekMap: Record<string, { quizzes: number; uniqueStudents: Set<string> }> = {}
     studentsWithQuizzes.forEach((s) => {
       s.quizResults.forEach((qr) => {
@@ -323,7 +320,6 @@ export function TeacherClient() {
         weekMap[key].uniqueStudents.add(s.userId)
       })
     })
-
     return Object.entries(weekMap)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-8)
@@ -392,117 +388,48 @@ export function TeacherClient() {
     if (!searchQuery.trim()) return students
     const q = searchQuery.toLowerCase()
     return students.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q)
+      (s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)
     )
   }, [students, searchQuery])
 
-  /* ---- Loading state ---- */
+  /* ---- Loading ---- */
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className={glassCard}>
-              <CardContent className="flex items-center gap-3 py-5">
-                <Skeleton className="size-10 rounded-lg" />
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card className={glassCard}>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center gap-3">
-              <Database className="size-8 animate-pulse text-primary" />
-              <p className="text-sm text-muted-foreground">Connecting to database and loading student data...</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col items-center gap-4 py-20">
+        <RefreshCw className="size-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading student data...</p>
       </div>
     )
   }
-
-  /* ---- No hard error block — dbStatus is shown inline ---- */
 
   /* ---- Main render ---- */
 
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
-      {/* DB status banner */}
+      {/* Data source banner */}
       <motion.div variants={fadeUp}>
-        {dbStatus === "connected" ? (
-          <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Database className="size-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">
-                Connected to MongoDB
-              </span>
-              <Badge variant="secondary" className="text-[10px]">
-                {students.length} student{students.length !== 1 ? "s" : ""} synced
-              </Badge>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fetchStudents(true)}
-              disabled={refreshing}
-              className="gap-1.5"
-            >
-              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
+        <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Users className="size-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">
+              Student Overview
+            </span>
+            <Badge variant="secondary" className="text-[10px]">
+              {students.length} student{students.length !== 1 ? "s" : ""}
+            </Badge>
           </div>
-        ) : dbStatus === "not_configured" ? (
-          <div className="flex items-center justify-between rounded-xl border border-yellow-500/30 bg-yellow-500/5 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-yellow-500" />
-              <span className="text-sm font-medium text-foreground">
-                MongoDB not configured
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Add MONGODB_URI in your environment variables to enable live student data
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fetchStudents(true)}
-              disabled={refreshing}
-              className="gap-1.5"
-            >
-              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Retry
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-destructive" />
-              <span className="text-sm font-medium text-foreground">
-                Database connection failed
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Check your MONGODB_URI and network connection
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => fetchStudents(true)}
-              disabled={refreshing}
-              className="gap-1.5"
-            >
-              <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              Retry
-            </Button>
-          </div>
-        )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="gap-1.5"
+          >
+            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </motion.div>
 
       {/* Overview Stats */}
@@ -567,7 +494,7 @@ export function TeacherClient() {
               <div>
                 <CardTitle className="font-display">Student Overview</CardTitle>
                 <CardDescription>
-                  All registered students with quiz performance from the database
+                  All registered students with quiz performance data
                 </CardDescription>
               </div>
               <Button
@@ -630,24 +557,17 @@ export function TeacherClient() {
                           const avg = getAvgScore(s)
                           const status = getStatus(avg)
                           return (
-                            <tr key={s._id} className="border-b border-border/50 transition-colors hover:bg-primary/5">
+                            <tr key={s.userId} className="border-b border-border/50 transition-colors hover:bg-primary/5">
                               <td className="py-3 pr-4">
                                 <div className="flex items-center gap-3">
                                   <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                                    {s.name
-                                      .split(" ")
-                                      .map((n) => n[0])
-                                      .join("")
-                                      .slice(0, 2)
-                                      .toUpperCase()}
+                                    {s.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                                   </div>
                                   <span className="font-medium text-foreground">{s.name}</span>
                                 </div>
                               </td>
                               <td className="py-3 pr-4 text-muted-foreground">{s.email}</td>
-                              <td className="py-3 pr-4 text-center font-medium text-foreground">
-                                {s.quizResults.length}
-                              </td>
+                              <td className="py-3 pr-4 text-center font-medium text-foreground">{s.quizResults.length}</td>
                               <td className="py-3 pr-4 text-center">
                                 {s.quizResults.length > 0 ? (
                                   <span className={`font-bold ${latest >= 70 ? "text-primary" : latest >= 50 ? "text-accent" : "text-destructive"}`}>
@@ -668,13 +588,9 @@ export function TeacherClient() {
                               </td>
                               <td className="py-3 pr-4 text-center">
                                 {s.quizResults.length > 0 ? (
-                                  <Badge variant={status.variant} className="text-[10px]">
-                                    {status.label}
-                                  </Badge>
+                                  <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    No Data
-                                  </Badge>
+                                  <Badge variant="outline" className="text-[10px]">No Data</Badge>
                                 )}
                               </td>
                               <td className="py-3 text-muted-foreground">{formatDate(s.lastActive)}</td>
@@ -692,16 +608,11 @@ export function TeacherClient() {
                       const avg = getAvgScore(s)
                       const status = getStatus(avg)
                       return (
-                        <div key={s._id} className="rounded-lg border border-border p-4">
+                        <div key={s.userId} className="rounded-lg border border-border p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                                {s.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
-                                  .slice(0, 2)
-                                  .toUpperCase()}
+                                {s.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                               </div>
                               <div>
                                 <p className="text-sm font-semibold text-foreground">{s.name}</p>
@@ -709,13 +620,9 @@ export function TeacherClient() {
                               </div>
                             </div>
                             {s.quizResults.length > 0 ? (
-                              <Badge variant={status.variant} className="text-[10px]">
-                                {status.label}
-                              </Badge>
+                              <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px]">
-                                No Data
-                              </Badge>
+                              <Badge variant="outline" className="text-[10px]">No Data</Badge>
                             )}
                           </div>
                           {s.quizResults.length > 0 && (
@@ -827,9 +734,7 @@ export function TeacherClient() {
             <CardHeader className="flex-row items-center justify-between">
               <div>
                 <CardTitle className="font-display">At-Risk Student Predictions</CardTitle>
-                <CardDescription>
-                  Students scoring below 50% who may need intervention
-                </CardDescription>
+                <CardDescription>Students scoring below 50% who may need intervention</CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -847,9 +752,7 @@ export function TeacherClient() {
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
                   <UserCheck className="size-10 text-primary/50" />
                   <div>
-                    <p className="font-display text-sm font-semibold text-foreground">
-                      No at-risk students detected
-                    </p>
+                    <p className="font-display text-sm font-semibold text-foreground">No at-risk students detected</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       All assessed students are scoring above 50%. Great progress!
                     </p>
@@ -858,29 +761,15 @@ export function TeacherClient() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {atRiskStudents.map((student) => (
-                    <div
-                      key={student.email}
-                      className="flex items-center gap-4 rounded-lg border border-border p-4"
-                    >
+                    <div key={student.email} className="flex items-center gap-4 rounded-lg border border-border p-4">
                       <div className="flex size-10 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground">
-                        {student.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
+                        {student.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-semibold text-foreground">{student.name}</h4>
                           <Badge
-                            variant={
-                              student.risk === "High"
-                                ? "destructive"
-                                : student.risk === "Medium"
-                                  ? "secondary"
-                                  : "outline"
-                            }
+                            variant={student.risk === "High" ? "destructive" : student.risk === "Medium" ? "secondary" : "outline"}
                             className="text-[10px]"
                           >
                             {student.risk} Risk
@@ -890,9 +779,7 @@ export function TeacherClient() {
                         {student.weakTopics.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {student.weakTopics.map((t) => (
-                              <Badge key={t} variant="outline" className="text-[10px]">
-                                {t}
-                              </Badge>
+                              <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
                             ))}
                           </div>
                         )}
@@ -920,9 +807,7 @@ export function TeacherClient() {
           <Card className={glassCard}>
             <CardHeader>
               <CardTitle className="font-display">Engagement & Quiz Activity Trend</CardTitle>
-              <CardDescription>
-                Weekly tracking of student engagement and quiz submission counts
-              </CardDescription>
+              <CardDescription>Weekly tracking of student engagement and quiz submission counts</CardDescription>
             </CardHeader>
             <CardContent>
               {engagementTrend.length === 0 ? (
@@ -989,9 +874,7 @@ export function TeacherClient() {
                 <Clock className="size-5 text-primary" />
                 Weak Concept Clusters
               </CardTitle>
-              <CardDescription>
-                Topics with the highest failure rates requiring focused instruction
-              </CardDescription>
+              <CardDescription>Topics with the highest failure rates requiring focused instruction</CardDescription>
             </CardHeader>
             <CardContent>
               {weakConcepts.length === 0 ? (

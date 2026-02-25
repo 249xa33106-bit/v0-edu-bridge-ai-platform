@@ -7,13 +7,13 @@ import {
   FileText,
   File,
   Trash2,
-  ExternalLink,
   Search,
   FolderOpen,
   AlertCircle,
   CheckCircle2,
   Loader2,
   X,
+  Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,19 +22,22 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/components/auth/auth-provider"
 
-interface UploadedFile {
+interface StoredFile {
   id: string
   fileName: string
   fileType: string
   fileSize: number
-  blobUrl: string
   subject: string
   description: string
   uploadedAt: string
+  /** data URL for small files (< 2 MB), null for larger */
+  dataUrl: string | null
 }
 
+const STORAGE_KEY = "edubridge_materials"
 const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".doc", ".txt"]
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const DATA_URL_LIMIT = 2 * 1024 * 1024 // store data URL for files up to 2 MB
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return "0 B"
@@ -60,11 +63,28 @@ function getFileIcon(type: string) {
   return <File className="size-5 text-purple-400" />
 }
 
+function loadFiles(userId: string): StoredFile[] {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY}_${userId}`)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveFiles(userId: string, files: StoredFile[]) {
+  try {
+    localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(files))
+  } catch {
+    // Storage might be full
+  }
+}
+
 export function MaterialsClient() {
   const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [files, setFiles] = useState<UploadedFile[]>([])
+  const [files, setFiles] = useState<StoredFile[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -74,33 +94,24 @@ export function MaterialsClient() {
   const [dragActive, setDragActive] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // Upload form state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(null)
   const [subject, setSubject] = useState("")
   const [description, setDescription] = useState("")
 
   const userId = user?.email || "anonymous"
 
-  const fetchFiles = useCallback(async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(`/api/files?userId=${encodeURIComponent(userId)}`)
-      const data = await res.json()
-      if (data.files) {
-        setFiles(data.files)
-      }
-    } catch {
-      setError("Failed to load files.")
-    } finally {
+  const fetchFiles = useCallback(() => {
+    setLoading(true)
+    setTimeout(() => {
+      setFiles(loadFiles(userId))
       setLoading(false)
-    }
+    }, 200)
   }, [userId])
 
   useEffect(() => {
     fetchFiles()
   }, [fetchFiles])
 
-  // Auto-dismiss notifications
   useEffect(() => {
     if (success) {
       const t = setTimeout(() => setSuccess(null), 4000)
@@ -115,7 +126,7 @@ export function MaterialsClient() {
     }
   }, [error])
 
-  function validateFile(file: File): string | null {
+  function validateFile(file: globalThis.File): string | null {
     const ext = "." + file.name.split(".").pop()?.toLowerCase()
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       return "Only PDF, DOCX, DOC, and TXT files are allowed."
@@ -126,7 +137,7 @@ export function MaterialsClient() {
     return null
   }
 
-  function handleFileSelect(file: File) {
+  function handleFileSelect(file: globalThis.File) {
     const validationError = validateFile(file)
     if (validationError) {
       setError(validationError)
@@ -160,69 +171,82 @@ export function MaterialsClient() {
     setUploadProgress(0)
     setError(null)
 
-    // Simulate progress during upload
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
         if (prev >= 90) {
           clearInterval(progressInterval)
           return 90
         }
-        return prev + 10
+        return prev + 15
       })
-    }, 200)
+    }, 150)
 
     try {
-      const formData = new FormData()
-      formData.append("file", selectedFile)
-      formData.append("userId", userId)
-      formData.append("subject", subject)
-      formData.append("description", description)
+      let dataUrl: string | null = null
 
-      const res = await fetch("/api/files/upload", {
-        method: "POST",
-        body: formData,
-      })
+      // Read file as data URL for small files
+      if (selectedFile.size <= DATA_URL_LIMIT) {
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error("Failed to read file"))
+          reader.readAsDataURL(selectedFile)
+        })
+      }
 
       clearInterval(progressInterval)
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Upload failed.")
+      const newFile: StoredFile = {
+        id: `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        fileName: selectedFile.name,
+        fileType: selectedFile.type || "application/octet-stream",
+        fileSize: selectedFile.size,
+        subject,
+        description,
+        uploadedAt: new Date().toISOString(),
+        dataUrl,
       }
 
+      const updated = [newFile, ...files]
+      setFiles(updated)
+      saveFiles(userId, updated)
+
       setUploadProgress(100)
-      setSuccess(`"${selectedFile.name}" uploaded successfully!`)
+      setSuccess(`"${selectedFile.name}" saved successfully!`)
       setSelectedFile(null)
       setSubject("")
       setDescription("")
       if (fileInputRef.current) fileInputRef.current.value = ""
-
-      // Refresh file list
-      await fetchFiles()
-    } catch (err) {
+    } catch {
       clearInterval(progressInterval)
-      setError(err instanceof Error ? err.message : "Upload failed.")
+      setError("Failed to save the file. Storage may be full.")
     } finally {
       setUploading(false)
       setTimeout(() => setUploadProgress(0), 1500)
     }
   }
 
-  async function handleDelete(fileId: string) {
+  function handleDelete(fileId: string) {
     setDeletingId(fileId)
-    setError(null)
-
-    try {
-      const res = await fetch(`/api/files?id=${fileId}`, { method: "DELETE" })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Delete failed.")
+    setTimeout(() => {
+      const updated = files.filter((f) => f.id !== fileId)
+      setFiles(updated)
+      saveFiles(userId, updated)
       setSuccess("File deleted successfully.")
-      setFiles((prev) => prev.filter((f) => f.id !== fileId))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.")
-    } finally {
       setDeletingId(null)
+    }, 300)
+  }
+
+  function handleView(file: StoredFile) {
+    if (file.dataUrl) {
+      const win = window.open()
+      if (win) {
+        win.document.write(
+          `<iframe src="${file.dataUrl}" style="width:100%;height:100%;border:none;" title="${file.fileName}"></iframe>`
+        )
+      }
+    } else {
+      setError("Preview not available for files larger than 2 MB. Re-upload a smaller version to enable preview.")
     }
   }
 
@@ -375,11 +399,10 @@ export function MaterialsClient() {
               </div>
             </div>
 
-            {/* Upload Progress */}
             {uploading && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Uploading...</span>
+                  <span>Saving...</span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <Progress value={uploadProgress} className="h-2" />
@@ -394,7 +417,7 @@ export function MaterialsClient() {
               {uploading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Uploading...
+                  Saving...
                 </>
               ) : (
                 <>
@@ -496,13 +519,11 @@ export function MaterialsClient() {
                       <Button
                         variant="outline"
                         size="sm"
-                        asChild
+                        onClick={() => handleView(file)}
                         className="gap-1.5 text-xs hover:border-purple-500/30 hover:text-purple-300"
                       >
-                        <a href={file.blobUrl} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="size-3" />
-                          View
-                        </a>
+                        <Eye className="size-3" />
+                        View
                       </Button>
                       <Button
                         variant="outline"
@@ -549,30 +570,29 @@ export function MaterialsClient() {
                     <div className="col-span-2 text-right text-xs text-muted-foreground">
                       {formatDate(file.uploadedAt)}
                     </div>
-                    <div className="col-span-2 flex items-center justify-end gap-1.5">
+                    <div className="col-span-2 flex items-center justify-end gap-2">
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                        className="size-8 text-muted-foreground hover:text-purple-300"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleView(file)}
+                        className="gap-1.5 text-xs hover:border-purple-500/30 hover:text-purple-300"
                       >
-                        <a href={file.blobUrl} target="_blank" rel="noopener noreferrer" aria-label={`View ${file.fileName}`}>
-                          <ExternalLink className="size-3.5" />
-                        </a>
+                        <Eye className="size-3" />
+                        View
                       </Button>
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleDelete(file.id)}
                         disabled={deletingId === file.id}
-                        className="size-8 text-muted-foreground hover:text-red-400"
-                        aria-label={`Delete ${file.fileName}`}
+                        className="gap-1.5 text-xs text-red-400 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
                       >
                         {deletingId === file.id ? (
-                          <Loader2 className="size-3.5 animate-spin" />
+                          <Loader2 className="size-3 animate-spin" />
                         ) : (
-                          <Trash2 className="size-3.5" />
+                          <Trash2 className="size-3" />
                         )}
+                        Delete
                       </Button>
                     </div>
                   </div>
