@@ -28,6 +28,7 @@ import {
   Target,
   AlertCircle,
 } from "lucide-react"
+import { useAuth } from "@/components/auth/auth-provider"
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -217,6 +218,7 @@ function generateStudyPlan(topicScores: TopicScore[]) {
 const QUIZ_STORAGE_KEY = "edubridge_quiz_results"
 
 export function DiagnosticClient() {
+  const { user } = useAuth()
   const [phase, setPhase] = useState<Phase>("setup")
   const [subject, setSubject] = useState("computer-science")
   const [material, setMaterial] = useState("")
@@ -274,11 +276,11 @@ export function DiagnosticClient() {
 
   const totalCorrect = answers.filter((a, i) => a === quizQuestions[i].correct).length
 
-  // Persist results to localStorage when entering results phase
+  // Persist results to localStorage + MongoDB when entering results phase
   useEffect(() => {
     if (phase === "results") {
       const topicScores = getTopicScores()
-      const result = {
+      const resultPayload = {
         topicScores: topicScores.map((ts) => ({
           topic: ts.topic,
           correct: ts.correct,
@@ -289,10 +291,30 @@ export function DiagnosticClient() {
         timestamp: Date.now(),
         material: material.trim(),
       }
+      // Save to localStorage
       try {
-        localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(result))
+        localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(resultPayload))
       } catch {
         // Silently fail if localStorage is not available
+      }
+      // Save to MongoDB via API
+      if (user) {
+        fetch("/api/students/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            name: user.name,
+            email: user.email,
+            topicScores: resultPayload.topicScores,
+            totalCorrect: resultPayload.totalCorrect,
+            totalQuestions: resultPayload.totalQuestions,
+            material: resultPayload.material,
+            subject,
+          }),
+        }).catch(() => {
+          // Silently fail -- localStorage is the fallback
+        })
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
