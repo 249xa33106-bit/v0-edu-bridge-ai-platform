@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
-import { BarChart3, BookOpen, Award, ExternalLink, Target, TrendingUp, Briefcase } from "lucide-react"
+import { BarChart3, BookOpen, Award, ExternalLink, Target, TrendingUp, Briefcase, Brain, ArrowRight } from "lucide-react"
 
 const stagger = {
   hidden: { opacity: 0 },
@@ -27,7 +27,35 @@ const fadeUp = {
 }
 const glassCard = "rounded-2xl border border-white/[0.12] bg-white/[0.06] shadow-lg shadow-black/[0.04] backdrop-blur-xl"
 
-const roles = [
+const QUIZ_STORAGE_KEY = "edubridge_quiz_results"
+
+interface QuizResult {
+  topicScores: { topic: string; correct: number; total: number }[]
+  totalCorrect: number
+  totalQuestions: number
+  timestamp: number
+  material?: string
+}
+
+// Map quiz topics to career role skill subjects
+const topicToSkillMap: Record<string, Record<string, string[]>> = {
+  "data-analyst": {
+    "Data Structures": ["Python"],
+    Algorithms: ["Python", "ML Basics"],
+    OOP: ["Python"],
+    Databases: ["SQL"],
+    Networking: ["Communication"],
+  },
+  "web-developer": {
+    "Data Structures": ["JavaScript", "Backend"],
+    Algorithms: ["JavaScript"],
+    OOP: ["React", "Backend"],
+    Databases: ["Databases"],
+    Networking: ["DevOps", "Backend"],
+  },
+}
+
+const baseRoles = [
   {
     id: "data-analyst",
     title: "Data Analyst",
@@ -97,18 +125,132 @@ const roles = [
   },
 ]
 
+function applyQuizToRole(
+  role: (typeof baseRoles)[0],
+  quizResult: QuizResult
+) {
+  const mapping = topicToSkillMap[role.id]
+  if (!mapping) return role
+
+  // Build quiz accuracy per topic
+  const topicAccuracy: Record<string, number> = {}
+  for (const ts of quizResult.topicScores) {
+    topicAccuracy[ts.topic] = ts.total > 0 ? (ts.correct / ts.total) * 100 : 0
+  }
+
+  // Update skills based on quiz
+  const updatedSkills = role.skills.map((skill) => {
+    // Find which quiz topics map to this skill
+    const matchingTopics: string[] = []
+    for (const [quizTopic, skillSubjects] of Object.entries(mapping)) {
+      if (skillSubjects.includes(skill.subject) && topicAccuracy[quizTopic] !== undefined) {
+        matchingTopics.push(quizTopic)
+      }
+    }
+
+    if (matchingTopics.length === 0) return skill
+
+    // Average the accuracy from matching quiz topics
+    const avgQuizAccuracy =
+      matchingTopics.reduce((sum, t) => sum + topicAccuracy[t], 0) / matchingTopics.length
+
+    // Blend: 40% original + 60% quiz-derived (quiz has more weight)
+    const blended = Math.round(skill.student * 0.4 + avgQuizAccuracy * 0.6)
+    return { ...skill, student: Math.min(100, Math.max(0, blended)) }
+  })
+
+  // Recompute readiness as weighted average: how close student is to industry for each skill
+  const totalWeight = updatedSkills.reduce((s, sk) => s + sk.industry, 0)
+  const weightedScore = updatedSkills.reduce((s, sk) => {
+    const ratio = Math.min(1, sk.student / sk.industry)
+    return s + ratio * sk.industry
+  }, 0)
+  const newReadiness = Math.round((weightedScore / totalWeight) * 100)
+
+  return {
+    ...role,
+    skills: updatedSkills,
+    readiness: newReadiness,
+  }
+}
+
 export function CareerClient() {
-  const [selectedRole, setSelectedRole] = useState(roles[0])
+  const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
+  const [selectedRoleId, setSelectedRoleId] = useState(baseRoles[0].id)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(QUIZ_STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as QuizResult
+        if (parsed.topicScores && parsed.totalCorrect !== undefined) {
+          setQuizResult(parsed)
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+  }, [])
+
+  const roles = useMemo(() => {
+    if (!quizResult) return baseRoles
+    return baseRoles.map((role) => applyQuizToRole(role, quizResult))
+  }, [quizResult])
+
+  const selectedRole = roles.find((r) => r.id === selectedRoleId) || roles[0]
+  const quizAccuracy = quizResult
+    ? Math.round((quizResult.totalCorrect / quizResult.totalQuestions) * 100)
+    : null
 
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger} className="flex flex-col gap-6">
+      {/* Quiz data banner */}
+      {quizResult ? (
+        <motion.div variants={fadeUp}>
+          <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+            <Brain className="size-5 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                Updated from your latest assessment
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Quiz score: {quizResult.totalCorrect}/{quizResult.totalQuestions} ({quizAccuracy}% accuracy) -- Taken {new Date(quizResult.timestamp).toLocaleDateString()}
+              </p>
+            </div>
+            <Badge variant="default" className="shrink-0">
+              Live Data
+            </Badge>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div variants={fadeUp}>
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <Brain className="size-5 text-muted-foreground" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                No assessment data yet
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Take the diagnostic assessment to get personalized career readiness scores based on your actual skill levels.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+              <a href="/diagnostic">
+                Take Quiz
+                <ArrowRight className="size-3.5" />
+              </a>
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Role Selector */}
       <div className="flex flex-wrap gap-3">
         {roles.map((role) => (
           <Button
             key={role.id}
-            variant={selectedRole.id === role.id ? "default" : "outline"}
-            onClick={() => setSelectedRole(role)}
+            variant={selectedRoleId === role.id ? "default" : "outline"}
+            onClick={() => setSelectedRoleId(role.id)}
             className="gap-2"
           >
             <Briefcase className="size-4" />
@@ -153,6 +295,11 @@ export function CareerClient() {
                     ? "Good progress! Focus on the priority skill gaps below."
                     : "Building foundations. Follow the recommended learning path."}
               </p>
+              {quizResult && (
+                <p className="mt-1 text-xs text-primary">
+                  Score adjusted from quiz accuracy ({quizAccuracy}%)
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -199,66 +346,66 @@ export function CareerClient() {
 
       {/* Priority Skill Gaps */}
       <motion.div variants={fadeUp}>
-      <Card className={glassCard}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display">
-            <Target className="size-5 text-primary" />
-            Priority Skill Gaps
-          </CardTitle>
-          <CardDescription>Actionable steps to close the gap for {selectedRole.title}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {selectedRole.gaps.map((gap) => (
-              <div key={gap.skill} className="rounded-lg border border-border p-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-foreground">{gap.skill}</h4>
-                  <Badge variant={gap.priority === "High" ? "destructive" : "secondary"}>
-                    {gap.priority}
-                  </Badge>
+        <Card className={glassCard}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display">
+              <Target className="size-5 text-primary" />
+              Priority Skill Gaps
+            </CardTitle>
+            <CardDescription>Actionable steps to close the gap for {selectedRole.title}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {selectedRole.gaps.map((gap) => (
+                <div key={gap.skill} className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground">{gap.skill}</h4>
+                    <Badge variant={gap.priority === "High" ? "destructive" : "secondary"}>
+                      {gap.priority}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{gap.suggestion}</p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">{gap.suggestion}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Recommended Courses */}
       <motion.div variants={fadeUp}>
-      <Card className={glassCard}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display">
-            <BookOpen className="size-5 text-primary" />
-            Recommended Courses
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            {selectedRole.courses.map((course) => (
-              <div key={course.name} className="flex items-center justify-between rounded-lg border border-border p-4">
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-foreground">{course.name}</h4>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{course.provider}</span>
-                    <span>{course.duration}</span>
+        <Card className={glassCard}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display">
+              <BookOpen className="size-5 text-primary" />
+              Recommended Courses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3">
+              {selectedRole.courses.map((course) => (
+                <div key={course.name} className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-foreground">{course.name}</h4>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>{course.provider}</span>
+                      <span>{course.duration}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-primary">{course.match}%</span>
+                      <p className="text-[10px] text-muted-foreground">match</p>
+                    </div>
+                    <Button variant="ghost" size="icon" aria-label="Open course">
+                      <ExternalLink className="size-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-sm font-bold text-primary">{course.match}%</span>
-                    <p className="text-[10px] text-muted-foreground">match</p>
-                  </div>
-                  <Button variant="ghost" size="icon" aria-label="Open course">
-                    <ExternalLink className="size-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Projects & Certifications */}
@@ -305,14 +452,13 @@ export function CareerClient() {
                     <p className="mt-0.5 text-xs text-muted-foreground">{cert.difficulty}</p>
                   </div>
                   <Button variant="ghost" size="icon" aria-label="View certification">
-                <ExternalLink className="size-4" />
+                    <ExternalLink className="size-4" />
                   </Button>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-
       </motion.div>
     </motion.div>
   )

@@ -43,13 +43,13 @@ export function AnimatedBackground() {
       for (const p of particles) {
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(99, 220, 190, ${p.opacity})`
+        ctx.fillStyle = `rgba(168, 130, 255, ${p.opacity})`
         ctx.fill()
 
         // Soft glow
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(99, 220, 190, ${p.opacity * 0.15})`
+        ctx.fillStyle = `rgba(168, 130, 255, ${p.opacity * 0.15})`
         ctx.fill()
 
         p.y += p.speed
@@ -76,12 +76,13 @@ export function AnimatedBackground() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628] via-[#0f1f3d] to-[#0c1a30] opacity-[0.03]" />
-      {/* Subtle mesh gradient blobs */}
-      <div className="absolute left-1/4 top-1/4 size-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.04] blur-[120px]" />
-      <div className="absolute right-1/4 bottom-1/4 size-[400px] translate-x-1/2 translate-y-1/2 rounded-full bg-chart-3/[0.03] blur-[100px]" />
-      <div className="absolute right-1/3 top-1/2 size-[350px] rounded-full bg-accent/[0.025] blur-[100px]" />
+      {/* Purple-blue gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a2e] via-[#16213e] to-[#0f0c29]" />
+      {/* Mesh gradient blobs */}
+      <div className="absolute left-1/4 top-1/4 size-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/[0.15] blur-[120px]" />
+      <div className="absolute right-1/4 bottom-1/4 size-[400px] translate-x-1/2 translate-y-1/2 rounded-full bg-blue-600/[0.12] blur-[100px]" />
+      <div className="absolute right-1/3 top-1/2 size-[350px] rounded-full bg-indigo-500/[0.08] blur-[100px]" />
+      <div className="absolute left-1/2 bottom-1/3 size-[300px] rounded-full bg-violet-600/[0.1] blur-[110px]" />
       {/* Particle canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 size-full opacity-60" />
     </div>
